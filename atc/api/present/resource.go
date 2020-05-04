@@ -37,8 +37,8 @@ func Resource(resource db.Resource, showCheckError bool, teamName string) atc.Re
 		atcResource.LastChecked = resource.LastCheckEndTime().Unix()
 	}
 
-	if resource.ConfigPinnedVersion() != nil {
-		atcResource.PinnedVersion = resource.ConfigPinnedVersion()
+	if resource.Version() != nil && resource.Version().Pinned != nil {
+		atcResource.PinnedVersion = resource.Version().Pinned
 		atcResource.PinnedInConfig = true
 	} else if resource.APIPinnedVersion() != nil {
 		atcResource.PinnedVersion = resource.APIPinnedVersion()

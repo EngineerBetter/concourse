@@ -29,7 +29,9 @@ var _ = Describe("Resource", func() {
 						Type:         "registry-image",
 						WebhookToken: "some-token",
 						Source:       atc.Source{"some": "repository"},
-						Version:      atc.Version{"ref": "abcdef"},
+						Version: &atc.VersionConfig{
+							Pinned: atc.Version{"ref": "abcdef"},
+						},
 					},
 					{
 						Name:   "some-other-resource",
@@ -42,6 +44,14 @@ var _ = Describe("Resource", func() {
 						Public: false,
 						Type:   "git",
 						Source: atc.Source{"some": "((secret-repository))"},
+					},
+					{
+						Name:   "some-version-latest-resource",
+						Type:   "git",
+						Source: atc.Source{"some": "other-repository"},
+						Version: &atc.VersionConfig{
+							Latest: true,
+						},
 					},
 					{
 						Name:         "some-resource-custom-check",
@@ -82,7 +92,7 @@ var _ = Describe("Resource", func() {
 		})
 
 		It("returns the resources", func() {
-			Expect(resources).To(HaveLen(4))
+			Expect(resources).To(HaveLen(5))
 
 			ids := map[int]struct{}{}
 
@@ -93,8 +103,8 @@ var _ = Describe("Resource", func() {
 				case "some-resource":
 					Expect(r.Type()).To(Equal("registry-image"))
 					Expect(r.Source()).To(Equal(atc.Source{"some": "repository"}))
-					Expect(r.ConfigPinnedVersion()).To(Equal(atc.Version{"ref": "abcdef"}))
-					Expect(r.CurrentPinnedVersion()).To(Equal(r.ConfigPinnedVersion()))
+					Expect(r.Version()).To(Equal(&atc.VersionConfig{Pinned: atc.Version{"ref": "abcdef"}}))
+					Expect(r.CurrentPinnedVersion()).To(Equal(r.Version().Pinned))
 					Expect(r.HasWebhook()).To(BeTrue())
 				case "some-other-resource":
 					Expect(r.Type()).To(Equal("git"))
@@ -103,6 +113,11 @@ var _ = Describe("Resource", func() {
 				case "some-secret-resource":
 					Expect(r.Type()).To(Equal("git"))
 					Expect(r.Source()).To(Equal(atc.Source{"some": "((secret-repository))"}))
+					Expect(r.HasWebhook()).To(BeFalse())
+				case "some-version-latest-resource":
+					Expect(r.Type()).To(Equal("git"))
+					Expect(r.Source()).To(Equal(atc.Source{"some": "other-repository"}))
+					Expect(r.Version()).To(Equal(&atc.VersionConfig{Latest: true}))
 					Expect(r.HasWebhook()).To(BeFalse())
 				case "some-resource-custom-check":
 					Expect(r.Type()).To(Equal("git"))
