@@ -1038,7 +1038,7 @@ var _ = Describe("Resources API", func() {
 						resource1.NameReturns("resource-1")
 						resource1.TypeReturns("type-1")
 						resource1.LastCheckEndTimeReturns(time.Unix(1513364881, 0))
-						resource1.ConfigPinnedVersionReturns(atc.Version{"version": "v1"})
+						resource1.VersionReturns(&atc.VersionConfig{Pinned: atc.Version{"version": "v1"}})
 
 						fakePipeline.ResourceReturns(resource1, true, nil)
 					})

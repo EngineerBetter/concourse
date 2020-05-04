@@ -1796,8 +1796,10 @@ var _ = Describe("Team", func() {
 			Expect(reloaded).To(BeTrue())
 			Expect(resource.APIPinnedVersion()).To(Equal(atc.Version{"version": "v1"}))
 
-			config.Resources[0].Version = atc.Version{
-				"version": "v2",
+			config.Resources[0].Version = &atc.VersionConfig{
+				Pinned: atc.Version{
+					"version": "v2",
+				},
 			}
 
 			savedPipeline, _, err := team.SavePipeline(pipelineName, config, pipeline.ConfigVersion(), false)
@@ -1806,7 +1808,7 @@ var _ = Describe("Team", func() {
 			resource, found, err = savedPipeline.Resource("some-resource")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
-			Expect(resource.ConfigPinnedVersion()).To(Equal(atc.Version{"version": "v2"}))
+			Expect(resource.Version().Pinned).To(Equal(atc.Version{"version": "v2"}))
 			Expect(resource.APIPinnedVersion()).To(BeNil())
 		})
 

@@ -35,7 +35,7 @@ type Resource interface {
 	CheckSetupError() error
 	CheckError() error
 	WebhookToken() string
-	ConfigPinnedVersion() atc.Version
+	Version() *atc.VersionConfig
 	APIPinnedVersion() atc.Version
 	PinComment() string
 	SetPinComment(string) error
@@ -109,7 +109,7 @@ type resource struct {
 	checkSetupError       error
 	checkError            error
 	webhookToken          string
-	configPinnedVersion   atc.Version
+	version               *atc.VersionConfig
 	apiPinnedVersion      atc.Version
 	pinComment            string
 	resourceConfigID      int
@@ -153,7 +153,7 @@ func (resources Resources) Configs() atc.ResourceConfigs {
 			Source:       r.Source(),
 			CheckEvery:   r.CheckEvery(),
 			Tags:         r.Tags(),
-			Version:      r.ConfigPinnedVersion(),
+			Version:      r.Version(),
 			Icon:         r.Icon(),
 		})
 	}
@@ -161,27 +161,27 @@ func (resources Resources) Configs() atc.ResourceConfigs {
 	return configs
 }
 
-func (r *resource) ID() int                          { return r.id }
-func (r *resource) Name() string                     { return r.name }
-func (r *resource) Public() bool                     { return r.public }
-func (r *resource) TeamID() int                      { return r.teamID }
-func (r *resource) TeamName() string                 { return r.teamName }
-func (r *resource) Type() string                     { return r.type_ }
-func (r *resource) Source() atc.Source               { return r.source }
-func (r *resource) CheckEvery() string               { return r.checkEvery }
-func (r *resource) CheckTimeout() string             { return r.checkTimeout }
-func (r *resource) LastCheckStartTime() time.Time    { return r.lastCheckStartTime }
-func (r *resource) LastCheckEndTime() time.Time      { return r.lastCheckEndTime }
-func (r *resource) Tags() atc.Tags                   { return r.tags }
-func (r *resource) CheckSetupError() error           { return r.checkSetupError }
-func (r *resource) CheckError() error                { return r.checkError }
-func (r *resource) WebhookToken() string             { return r.webhookToken }
-func (r *resource) ConfigPinnedVersion() atc.Version { return r.configPinnedVersion }
-func (r *resource) APIPinnedVersion() atc.Version    { return r.apiPinnedVersion }
-func (r *resource) PinComment() string               { return r.pinComment }
-func (r *resource) ResourceConfigID() int            { return r.resourceConfigID }
-func (r *resource) ResourceConfigScopeID() int       { return r.resourceConfigScopeID }
-func (r *resource) Icon() string                     { return r.icon }
+func (r *resource) ID() int                       { return r.id }
+func (r *resource) Name() string                  { return r.name }
+func (r *resource) Public() bool                  { return r.public }
+func (r *resource) TeamID() int                   { return r.teamID }
+func (r *resource) TeamName() string              { return r.teamName }
+func (r *resource) Type() string                  { return r.type_ }
+func (r *resource) Source() atc.Source            { return r.source }
+func (r *resource) CheckEvery() string            { return r.checkEvery }
+func (r *resource) CheckTimeout() string          { return r.checkTimeout }
+func (r *resource) LastCheckStartTime() time.Time { return r.lastCheckStartTime }
+func (r *resource) LastCheckEndTime() time.Time   { return r.lastCheckEndTime }
+func (r *resource) Tags() atc.Tags                { return r.tags }
+func (r *resource) CheckSetupError() error        { return r.checkSetupError }
+func (r *resource) CheckError() error             { return r.checkError }
+func (r *resource) WebhookToken() string          { return r.webhookToken }
+func (r *resource) Version() *atc.VersionConfig   { return r.version }
+func (r *resource) APIPinnedVersion() atc.Version { return r.apiPinnedVersion }
+func (r *resource) PinComment() string            { return r.pinComment }
+func (r *resource) ResourceConfigID() int         { return r.resourceConfigID }
+func (r *resource) ResourceConfigScopeID() int    { return r.resourceConfigScopeID }
+func (r *resource) Icon() string                  { return r.icon }
 
 func (r *resource) HasWebhook() bool { return r.WebhookToken() != "" }
 
@@ -383,8 +383,8 @@ func (r *resource) SetPinComment(comment string) error {
 }
 
 func (r *resource) CurrentPinnedVersion() atc.Version {
-	if r.configPinnedVersion != nil {
-		return r.configPinnedVersion
+	if r.version != nil && r.version.Pinned != nil {
+		return r.version.Pinned
 	} else if r.apiPinnedVersion != nil {
 		return r.apiPinnedVersion
 	}
@@ -748,7 +748,7 @@ func scanResource(r *resource, row scannable) error {
 	r.checkTimeout = config.CheckTimeout
 	r.tags = config.Tags
 	r.webhookToken = config.WebhookToken
-	r.configPinnedVersion = config.Version
+	r.version = config.Version
 	r.icon = config.Icon
 
 	if apiPinnedVersion.Valid {
