@@ -22,8 +22,8 @@ var _ = Describe("Inputs", func() {
 		Latest   = &atc.VersionConfig{Latest: true}
 		Every    = &atc.VersionConfig{Every: true}
 		Version1 = atc.Version{"ver": "v1"}
-		Version2 = atc.Version{"ver": "v2"}
 		PinnedV1 = &atc.VersionConfig{Pinned: Version1}
+		PinnedV2 = &atc.VersionConfig{Pinned: atc.Version{"ver": "v2"}}
 	)
 
 	BeforeEach(func() {
@@ -38,12 +38,13 @@ var _ = Describe("Inputs", func() {
 	DescribeTable("CreateInputConfigs",
 		func(
 			jobVersion *atc.VersionConfig,
-			resourcePinnedVersion atc.Version,
+			resourceVersion *atc.VersionConfig,
 			expectedUseEveryVersion bool,
 			expectedPinnedVersion atc.Version,
 		) {
-			if resourcePinnedVersion != nil {
-				fakeResource.CurrentPinnedVersionReturns(resourcePinnedVersion)
+			fakeResource.VersionReturns(resourceVersion)
+			if resourceVersion != nil && resourceVersion.Pinned != nil {
+				fakeResource.CurrentPinnedVersionReturns(resourceVersion.Pinned)
 			}
 
 			jobInput := atc.JobInput{
@@ -56,13 +57,21 @@ var _ = Describe("Inputs", func() {
 			Expect(inputConfigs[0].PinnedVersion).To(Equal(expectedPinnedVersion))
 		},
 		Entry("no job version, no resource version", nil, nil, false, nil),
-		Entry("no job version, resource version pinned", nil, Version1, false, Version1),
+		Entry("no job version, resource version latest", nil, Latest, false, nil),
+		Entry("no job version, resource version every", nil, Every, true, nil),
+		Entry("no job version, resource version pinned", nil, PinnedV1, false, Version1),
 		Entry("job version latest, no resource version", Latest, nil, false, nil),
-		Entry("job version latest, resource version pinned", Latest, Version1, false, Version1),
+		Entry("job version latest, resource version latest", Latest, Latest, false, nil),
+		Entry("job version latest, resource version every", Latest, Every, false, nil),
+		Entry("job version latest, resource version pinned", Latest, PinnedV1, false, Version1),
 		Entry("job version every, no resource version", Every, nil, true, nil),
-		Entry("job version every, resource version pinned", Every, Version1, false, Version1),
+		Entry("job version every, resource version latest", Every, Latest, true, nil),
+		Entry("job version every, resource version every", Every, Every, true, nil),
+		Entry("job version every, resource version pinned", Every, PinnedV1, false, Version1),
 		Entry("job version pinned, no resource version", PinnedV1, nil, false, Version1),
-		Entry("job version pinned, resource version pinned", PinnedV1, Version2, false, Version1),
+		Entry("job version pinned, resource version latest", PinnedV1, Latest, false, Version1),
+		Entry("job version pinned, resource version every", PinnedV1, Every, false, Version1),
+		Entry("job version pinned, resource version pinned", PinnedV1, PinnedV2, false, Version1),
 	)
 
 	Describe("when no matching resource exists", func() {

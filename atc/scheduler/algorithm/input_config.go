@@ -50,6 +50,9 @@ func (a *Algorithm) CreateInputConfigs(
 		inputConfig.PinnedVersion = pinnedVersion
 
 		if inputConfig.PinnedVersion == nil {
+			if resource.Version() != nil {
+				inputConfig.UseEveryVersion = resource.Version().Every
+			}
 			if input.Version != nil {
 				inputConfig.UseEveryVersion = input.Version.Every
 			}
