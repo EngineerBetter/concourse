@@ -2,10 +2,9 @@
 resources:
 - name: some-resource
   type: mock
-  version: ((pinned_resource_version))
+  version: ((resource_version_config))
   source:
     no_initial_version: true
-
     # this initial version is to make it unique and isnt really used
     initial_version: ((hash))
 
@@ -13,15 +12,18 @@ jobs:
 - name: some-passing-job
   plan:
   - get: some-resource
-    version: ((version_config))
+    version: ((get_version_config))
   - task: print-version
     config:
       platform: linux
+
       image_resource:
         type: mock
         source: {mirror_self: true}
+
       inputs:
       - name: some-resource
+
       run:
         path: cat
         args: [some-resource/version]

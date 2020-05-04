@@ -11,7 +11,7 @@ jobs:
 - name: some-passing-job
   plan:
   - get: some-resource
-    version: every
+    version: ((version_config))
   - task: print-version
     config:
       platform: linux

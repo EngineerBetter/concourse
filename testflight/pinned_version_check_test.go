@@ -14,10 +14,9 @@ var _ = Describe("A resource pinned with a version during initial set of the pip
 			Expect(err).ToNot(HaveOccurred())
 
 			setAndUnpausePipeline(
-				"fixtures/pinned-resource-simple-trigger.yml",
+				"fixtures/version-resource-in-resource.yml",
 				"-v", "hash="+hash.String(),
-				"-y", `pinned_resource_version={"version":"v1"}`,
-				"-v", "version_config=nil",
+				"-y", `resource_version_config={"version":"v1"}`,
 			)
 		})
 

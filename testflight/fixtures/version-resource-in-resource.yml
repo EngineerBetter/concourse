@@ -2,6 +2,7 @@
 resources:
 - name: some-resource
   type: mock
+  version: ((version_config))
   source:
     no_initial_version: true
     # this initial version is to make it unique and isnt really used
@@ -11,7 +12,6 @@ jobs:
 - name: some-passing-job
   plan:
   - get: some-resource
-    version: latest
   - task: print-version
     config:
       platform: linux

@@ -20,7 +20,9 @@ var _ = Describe("Resource version", func() {
 	Describe("when the version is not pinned on the resource", func() {
 		Describe("version: latest", func() {
 			BeforeEach(func() {
-				setAndUnpausePipeline("fixtures/resource-version-latest.yml", "-v", "hash="+hash)
+				setAndUnpausePipeline("fixtures/version-resource-in-get.yml",
+					"-v", "hash="+hash,
+					"-v", "version_config=latest")
 			})
 
 			It("only runs builds with latest version", func() {
@@ -39,7 +41,9 @@ var _ = Describe("Resource version", func() {
 
 		Describe("version: every", func() {
 			BeforeEach(func() {
-				setAndUnpausePipeline("fixtures/resource-version-every.yml", "-v", "hash="+hash)
+				setAndUnpausePipeline("fixtures/version-resource-in-get.yml",
+					"-v", "hash="+hash,
+					"-v", "version_config=every")
 			})
 
 			It("runs builds with every version", func() {
@@ -64,7 +68,9 @@ var _ = Describe("Resource version", func() {
 
 		Describe("version: pinned", func() {
 			BeforeEach(func() {
-				setAndUnpausePipeline("fixtures/resource-version-every.yml", "-v", "hash="+hash)
+				setAndUnpausePipeline("fixtures/version-resource-in-get.yml",
+					"-v", "hash="+hash,
+					"-v", "version_config=every")
 			})
 
 			It("only runs builds with the pinned version", func() {
@@ -77,7 +83,9 @@ var _ = Describe("Resource version", func() {
 				guid3 := newMockVersion("some-resource", "guid3")
 				_ = newMockVersion("some-resource", "guid4")
 
-				setPipeline("fixtures/pinned-version.yml", "-v", "hash="+hash, "-v", "pinned_version="+guid3)
+				setPipeline("fixtures/version-resource-in-get.yml",
+					"-v", "hash="+hash,
+					"-y", `version_config={"version":"`+guid3+`"}`)
 
 				watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(guid3))
@@ -94,9 +102,9 @@ var _ = Describe("Resource version", func() {
 			versionConfig = "null"
 
 			setAndUnpausePipeline(
-				"fixtures/pinned-resource-simple-trigger.yml",
-				"-y", "pinned_resource_version=null",
-				"-y", "version_config="+versionConfig,
+				"fixtures/version-resource-in-both.yml",
+				"-y", "resource_version_config=null",
+				"-y", "get_version_config="+versionConfig,
 				"-v", "hash="+hash,
 			)
 
@@ -107,9 +115,9 @@ var _ = Describe("Resource version", func() {
 
 		JustBeforeEach(func() {
 			setPipeline(
-				"fixtures/pinned-resource-simple-trigger.yml",
-				"-y", `pinned_resource_version={"version":"`+pinnedGUID+`"}`,
-				"-y", "version_config="+versionConfig,
+				"fixtures/version-resource-in-both.yml",
+				"-y", `resource_version_config={"version":"`+pinnedGUID+`"}`,
+				"-y", "get_version_config="+versionConfig,
 				"-v", "hash="+hash,
 			)
 		})
