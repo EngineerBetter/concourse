@@ -62,8 +62,12 @@ func constructResolvers(
 		}
 
 		var pinnedVersion atc.Version
-		if resource.CurrentPinnedVersion() != nil {
-			pinnedVersion = resource.CurrentPinnedVersion()
+		if resource.Version() != nil {
+			inputConfig.UseEveryVersion = resource.Version().Every
+
+			if resource.CurrentPinnedVersion() != nil {
+				pinnedVersion = resource.CurrentPinnedVersion()
+			}
 		}
 
 		if input.Version != nil {
