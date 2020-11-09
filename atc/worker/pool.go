@@ -79,16 +79,19 @@ type Pool interface {
 }
 
 type pool struct {
-	provider WorkerProvider
-	rand     *rand.Rand
+	provider         WorkerProvider
+	rand             *rand.Rand
+	allowZeroWorkers bool
 }
 
 func NewPool(
 	provider WorkerProvider,
+	allowZeroWorkers bool,
 ) Pool {
 	return &pool{
-		provider: provider,
-		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
+		provider:         provider,
+		rand:             rand.New(rand.NewSource(time.Now().UnixNano())),
+		allowZeroWorkers: allowZeroWorkers,
 	}
 }
 
@@ -97,11 +100,12 @@ func (pool *pool) allSatisfying(logger lager.Logger, spec WorkerSpec) ([]Worker,
 	if err != nil {
 		return nil, err
 	}
-
 	if len(workers) == 0 {
+		if pool.allowZeroWorkers {
+			return []Worker{}, nil
+		}
 		return nil, ErrNoWorkers
 	}
-
 	compatibleTeamWorkers := []Worker{}
 	compatibleGeneralWorkers := []Worker{}
 	for _, worker := range workers {
@@ -123,6 +127,9 @@ func (pool *pool) allSatisfying(logger lager.Logger, spec WorkerSpec) ([]Worker,
 		return compatibleGeneralWorkers, nil
 	}
 
+	if pool.allowZeroWorkers {
+		return []Worker{}, nil
+	}
 	return nil, NoCompatibleWorkersError{
 		Spec: spec,
 	}
@@ -172,6 +179,9 @@ func (pool *pool) FindOrChooseWorkerForContainer(
 	compatibleWorkers, err := pool.allSatisfying(logger, workerSpec)
 	if err != nil {
 		return nil, err
+	}
+	if len(compatibleWorkers) == 0 {
+		return nil, nil
 	}
 
 	var worker Worker

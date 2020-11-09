@@ -161,6 +161,7 @@ type RunCommand struct {
 
 	ContainerPlacementStrategy        string        `long:"container-placement-strategy" default:"volume-locality" choice:"volume-locality" choice:"random" choice:"fewest-build-containers" choice:"limit-active-tasks" description:"Method by which a worker is selected during container placement."`
 	MaxActiveTasksPerWorker           int           `long:"max-active-tasks-per-worker" default:"0" description:"Maximum allowed number of active build tasks per worker. Has effect only when used with limit-active-tasks placement strategy. 0 means no limit."`
+	AllowZeroWorkers                  bool          `long:"allow-zero-workers" description:"Continue trying to find workers when zero compatible workers are available"`
 	BaggageclaimResponseHeaderTimeout time.Duration `long:"baggageclaim-response-header-timeout" default:"1m" description:"How long to wait for Baggageclaim to send the response header."`
 	StreamingArtifactsCompression     string        `long:"streaming-artifacts-compression" default:"gzip" choice:"gzip" choice:"zstd" description:"Compression algorithm for internal streaming."`
 
@@ -762,7 +763,7 @@ func (cmd *RunCommand) constructAPIMembers(
 		cmd.GardenRequestTimeout,
 	)
 
-	pool := worker.NewPool(workerProvider)
+	pool := worker.NewPool(workerProvider, cmd.AllowZeroWorkers)
 	workerClient := worker.NewClient(pool, workerProvider, compressionLib, workerAvailabilityPollingInterval, workerStatusPublishInterval)
 
 	credsManagers := cmd.CredentialManagers
@@ -1013,7 +1014,7 @@ func (cmd *RunCommand) backendComponents(
 		cmd.GardenRequestTimeout,
 	)
 
-	pool := worker.NewPool(workerProvider)
+	pool := worker.NewPool(workerProvider, cmd.AllowZeroWorkers)
 	workerClient := worker.NewClient(pool,
 		workerProvider,
 		compressionLib,
@@ -1587,6 +1588,10 @@ func (cmd *RunCommand) constructLockConn(driverName string) (*sql.DB, error) {
 
 func (cmd *RunCommand) chooseBuildContainerStrategy() (worker.ContainerPlacementStrategy, error) {
 	var strategy worker.ContainerPlacementStrategy
+	if cmd.AllowZeroWorkers {
+		fmt.Println("AllowZeroWorkers set to true")
+		return worker.NewAllowZeroWorkersPlacementStrategy(), nil
+	}
 	if cmd.ContainerPlacementStrategy != "limit-active-tasks" && cmd.MaxActiveTasksPerWorker != 0 {
 		return nil, errors.New("max-active-tasks-per-worker has only effect with limit-active-tasks strategy")
 	}

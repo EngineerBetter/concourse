@@ -51,6 +51,7 @@ type Client interface {
 		runtime.StartingEventDelegate,
 		resource.Resource,
 		time.Duration,
+		lock.LockFactory,
 	) (CheckResult, error)
 
 	RunTaskStep(
@@ -77,6 +78,7 @@ type Client interface {
 		runtime.ProcessSpec,
 		runtime.StartingEventDelegate,
 		resource.Resource,
+		lock.LockFactory,
 	) (PutResult, error)
 
 	RunGetStep(
@@ -91,6 +93,7 @@ type Client interface {
 		runtime.StartingEventDelegate,
 		db.UsedResourceCache,
 		resource.Resource,
+		lock.LockFactory,
 	) (GetResult, error)
 }
 
@@ -197,6 +200,7 @@ func (client *client) RunCheckStep(
 	eventDelegate runtime.StartingEventDelegate,
 	checkable resource.Resource,
 	timeout time.Duration,
+	lockFactory lock.LockFactory,
 ) (CheckResult, error) {
 	if containerSpec.ImageSpec.ImageArtifact != nil {
 		err := client.wireImageVolume(logger, &containerSpec.ImageSpec)
@@ -205,14 +209,17 @@ func (client *client) RunCheckStep(
 		}
 	}
 
-	chosenWorker, err := client.pool.FindOrChooseWorkerForContainer(
+	chosenWorker, err := client.chooseTaskWorker(
 		ctx,
 		logger,
+		strategy,
+		lockFactory,
 		owner,
 		containerSpec,
 		workerSpec,
-		strategy,
+		processSpec.StdoutWriter,
 	)
+
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("find or choose worker for container: %w", err)
 	}
@@ -411,6 +418,7 @@ func (client *client) RunGetStep(
 	eventDelegate runtime.StartingEventDelegate,
 	resourceCache db.UsedResourceCache,
 	resource resource.Resource,
+	lockFactory lock.LockFactory,
 ) (GetResult, error) {
 	if containerSpec.ImageSpec.ImageArtifact != nil {
 		err := client.wireImageVolume(logger, &containerSpec.ImageSpec)
@@ -419,14 +427,17 @@ func (client *client) RunGetStep(
 		}
 	}
 
-	chosenWorker, err := client.pool.FindOrChooseWorkerForContainer(
+	chosenWorker, err := client.chooseTaskWorker(
 		ctx,
 		logger,
+		strategy,
+		lockFactory,
 		owner,
 		containerSpec,
 		workerSpec,
-		strategy,
+		processSpec.StdoutWriter,
 	)
+
 	if err != nil {
 		return GetResult{}, err
 	}
@@ -469,6 +480,7 @@ func (client *client) RunPutStep(
 	spec runtime.ProcessSpec,
 	eventDelegate runtime.StartingEventDelegate,
 	resource resource.Resource,
+	lockFactory lock.LockFactory,
 ) (PutResult, error) {
 	if containerSpec.ImageSpec.ImageArtifact != nil {
 		err := client.wireImageVolume(logger, &containerSpec.ImageSpec)
@@ -483,13 +495,15 @@ func (client *client) RunPutStep(
 		return PutResult{}, err
 	}
 
-	chosenWorker, err := client.pool.FindOrChooseWorkerForContainer(
+	chosenWorker, err := client.chooseTaskWorker(
 		ctx,
 		logger,
+		strategy,
+		lockFactory,
 		owner,
 		containerSpec,
 		workerSpec,
-		strategy,
+		spec.StdoutWriter,
 	)
 	if err != nil {
 		return PutResult{}, err

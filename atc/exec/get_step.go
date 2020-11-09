@@ -10,6 +10,7 @@ import (
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/creds"
 	"github.com/concourse/concourse/atc/db"
+	"github.com/concourse/concourse/atc/db/lock"
 	"github.com/concourse/concourse/atc/exec/build"
 	"github.com/concourse/concourse/atc/resource"
 	"github.com/concourse/concourse/atc/runtime"
@@ -71,6 +72,7 @@ type GetStep struct {
 	strategy             worker.ContainerPlacementStrategy
 	workerClient         worker.Client
 	delegateFactory      GetDelegateFactory
+	lockFactory          lock.LockFactory
 }
 
 func NewGetStep(
@@ -83,6 +85,7 @@ func NewGetStep(
 	strategy worker.ContainerPlacementStrategy,
 	delegateFactory GetDelegateFactory,
 	client worker.Client,
+	lockFactory lock.LockFactory,
 ) Step {
 	return &GetStep{
 		planID:               planID,
@@ -94,6 +97,7 @@ func NewGetStep(
 		strategy:             strategy,
 		delegateFactory:      delegateFactory,
 		workerClient:         client,
+		lockFactory:          lockFactory,
 	}
 }
 
@@ -217,6 +221,7 @@ func (step *GetStep) run(ctx context.Context, state RunState, delegate GetDelega
 		delegate,
 		resourceCache,
 		resourceToGet,
+		step.lockFactory,
 	)
 	if err != nil {
 		return false, err

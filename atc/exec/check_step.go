@@ -31,6 +31,7 @@ type CheckStep struct {
 	delegateFactory       CheckDelegateFactory
 	workerClient          worker.Client
 	defaultCheckTimeout   time.Duration
+	lockFactory           lock.LockFactory
 }
 
 //go:generate counterfeiter . CheckDelegateFactory
@@ -61,6 +62,7 @@ func NewCheckStep(
 	delegateFactory CheckDelegateFactory,
 	client worker.Client,
 	defaultCheckTimeout time.Duration,
+	lockFactory lock.LockFactory,
 ) Step {
 	return &CheckStep{
 		planID:                planID,
@@ -74,6 +76,7 @@ func NewCheckStep(
 		delegateFactory:       delegateFactory,
 		workerClient:          client,
 		defaultCheckTimeout:   defaultCheckTimeout,
+		lockFactory:           lockFactory,
 	}
 }
 
@@ -306,6 +309,7 @@ func (step *CheckStep) runCheck(
 		delegate,
 		checkable,
 		timeout,
+		step.lockFactory,
 	)
 }
 

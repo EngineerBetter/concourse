@@ -26,7 +26,7 @@ var _ = Describe("Pool", func() {
 		logger = lagertest.NewTestLogger("test")
 		fakeProvider = new(workerfakes.FakeWorkerProvider)
 
-		pool = NewPool(fakeProvider)
+		pool = NewPool(fakeProvider, false)
 	})
 
 	Describe("FindOrChooseWorkerForContainer", func() {
@@ -344,6 +344,16 @@ var _ = Describe("Pool", func() {
 				It("returns ErrNoWorkers", func() {
 					Expect(chooseErr).To(Equal(ErrNoWorkers))
 				})
+
+				Context("when allowZeroWorkers is true", func() {
+					BeforeEach(func() {
+						pool = NewPool(fakeProvider, true)
+					})
+					It("returns an empty list of workers", func() {
+						Expect(chooseErr).NotTo(HaveOccurred())
+						Expect(chosenWorker).To(BeNil())
+					})
+				})
 			})
 
 			Context("when getting the workers fails", func() {
@@ -377,6 +387,16 @@ var _ = Describe("Pool", func() {
 					Expect(chooseErr).To(Equal(NoCompatibleWorkersError{
 						Spec: workerSpec,
 					}))
+				})
+
+				Context("when allowZeroWorkers is true", func() {
+					BeforeEach(func() {
+						pool = NewPool(fakeProvider, true)
+					})
+					It("returns an empty list of workers", func() {
+						Expect(chooseErr).NotTo(HaveOccurred())
+						Expect(chosenWorker).To(BeNil())
+					})
 				})
 			})
 

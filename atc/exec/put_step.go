@@ -9,6 +9,7 @@ import (
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/creds"
 	"github.com/concourse/concourse/atc/db"
+	"github.com/concourse/concourse/atc/db/lock"
 	"github.com/concourse/concourse/atc/resource"
 	"github.com/concourse/concourse/atc/runtime"
 	"github.com/concourse/concourse/atc/worker"
@@ -54,6 +55,7 @@ type PutStep struct {
 	workerClient          worker.Client
 	delegateFactory       PutDelegateFactory
 	succeeded             bool
+	lockFactory           lock.LockFactory
 }
 
 func NewPutStep(
@@ -66,6 +68,7 @@ func NewPutStep(
 	strategy worker.ContainerPlacementStrategy,
 	workerClient worker.Client,
 	delegateFactory PutDelegateFactory,
+	lockFactory lock.LockFactory,
 ) Step {
 	return &PutStep{
 		planID:                planID,
@@ -77,6 +80,7 @@ func NewPutStep(
 		workerClient:          workerClient,
 		strategy:              strategy,
 		delegateFactory:       delegateFactory,
+		lockFactory:           lockFactory,
 	}
 }
 
@@ -215,6 +219,7 @@ func (step *PutStep) run(ctx context.Context, state RunState, delegate PutDelega
 		processSpec,
 		delegate,
 		resourceToPut,
+		step.lockFactory,
 	)
 	if err != nil {
 		logger.Error("failed-to-put-resource", err)

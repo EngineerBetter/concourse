@@ -74,6 +74,7 @@ func (factory *coreStepFactory) GetStep(
 		factory.strategy,
 		delegateFactory,
 		factory.client,
+		factory.lockFactory,
 	)
 
 	getStep = exec.LogError(getStep, delegateFactory)
@@ -101,6 +102,7 @@ func (factory *coreStepFactory) PutStep(
 		factory.strategy,
 		factory.client,
 		delegateFactory,
+		factory.lockFactory,
 	)
 
 	putStep = exec.LogError(putStep, delegateFactory)
@@ -125,11 +127,12 @@ func (factory *coreStepFactory) CheckStep(
 		factory.resourceFactory,
 		factory.resourceConfigFactory,
 		containerMetadata,
-		worker.NewRandomPlacementStrategy(),
+		factory.strategy,
 		factory.pool,
 		delegateFactory,
 		factory.client,
 		factory.defaultCheckTimeout,
+		factory.lockFactory,
 	)
 
 	checkStep = exec.LogError(checkStep, delegateFactory)

@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -13,6 +14,25 @@ type ContainerPlacementStrategy interface {
 	// Change this after check containers stop being reused
 	Choose(lager.Logger, []Worker, ContainerSpec) (Worker, error)
 	ModifiesActiveTasks() bool
+}
+
+type AllowZeroWorkersPlacementStrategy struct {
+}
+
+func NewAllowZeroWorkersPlacementStrategy() ContainerPlacementStrategy {
+	return &AllowZeroWorkersPlacementStrategy{}
+}
+
+func (strategy *AllowZeroWorkersPlacementStrategy) Choose(logger lager.Logger, workers []Worker, spec ContainerSpec) (Worker, error) {
+	if len(workers) == 0 {
+		return nil, nil
+	}
+	return workers[0], nil
+}
+
+func (strategy *AllowZeroWorkersPlacementStrategy) ModifiesActiveTasks() bool {
+	fmt.Println("running ModifiesActiveTasks")
+	return true
 }
 
 type VolumeLocalityPlacementStrategy struct {
