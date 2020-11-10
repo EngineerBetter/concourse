@@ -136,6 +136,7 @@ func (step *GetStep) run(ctx context.Context, state RunState, delegate GetDelega
 		Tags:         step.plan.Tags,
 		TeamID:       step.metadata.TeamID,
 		ResourceType: step.plan.VersionedResourceTypes.Base(step.plan.Type),
+		StepType:     "putStep",
 	}
 
 	var imageSpec worker.ImageSpec

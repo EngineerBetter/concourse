@@ -209,6 +209,7 @@ func (client *client) RunCheckStep(
 		}
 	}
 
+	fmt.Printf("Running chooseTaskWorker for %v", containerMetadata.PipelineName)
 	chosenWorker, err := client.chooseTaskWorker(
 		ctx,
 		logger,
@@ -625,7 +626,10 @@ func (client *client) chooseTaskWorker(
 			return chosenWorker, nil
 		}
 
-		if activeTasksLock, lockAcquired, err = lockFactory.Acquire(logger, lock.NewActiveTasksLockID()); err != nil {
+		lockID := lock.NewActiveTasksLockID()
+		fmt.Printf("lockID is %v", lockID)
+
+		if activeTasksLock, lockAcquired, err = lockFactory.Acquire(logger, lockID); err != nil {
 			return nil, err
 		}
 

@@ -247,6 +247,7 @@ func (step *CheckStep) runCheck(
 		Tags:         step.plan.Tags,
 		TeamID:       step.metadata.TeamID,
 		ResourceType: step.plan.VersionedResourceTypes.Base(step.plan.Type),
+		StepType:     "checkStep",
 	}
 
 	var imageSpec worker.ImageSpec

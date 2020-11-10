@@ -69,6 +69,7 @@ type Worker interface {
 	StartTime() time.Time
 	ExpiresAt() time.Time
 	Ephemeral() bool
+	PermittedSteps() []string
 
 	Reload() (bool, error)
 
@@ -100,6 +101,7 @@ type worker struct {
 	activeVolumes    int
 	activeTasks      int
 	resourceTypes    []atc.WorkerResourceType
+	permittedSteps   []string
 	platform         string
 	tags             []string
 	teamID           int
@@ -123,6 +125,7 @@ func (worker *worker) NoProxy() string                         { return worker.n
 func (worker *worker) ActiveContainers() int                   { return worker.activeContainers }
 func (worker *worker) ActiveVolumes() int                      { return worker.activeVolumes }
 func (worker *worker) ResourceTypes() []atc.WorkerResourceType { return worker.resourceTypes }
+func (worker *worker) PermittedSteps() []string                { return worker.permittedSteps }
 func (worker *worker) Platform() string                        { return worker.platform }
 func (worker *worker) Tags() []string                          { return worker.tags }
 func (worker *worker) TeamID() int                             { return worker.teamID }

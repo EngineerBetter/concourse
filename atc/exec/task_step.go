@@ -397,6 +397,7 @@ func (step *TaskStep) workerSpec(config atc.TaskConfig) worker.WorkerSpec {
 		Platform: config.Platform,
 		Tags:     step.plan.Tags,
 		TeamID:   step.metadata.TeamID,
+		StepType: "taskStep",
 	}
 }
 

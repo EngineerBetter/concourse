@@ -71,6 +71,7 @@ var _ = Describe("Worker", func() {
 
 		findOrCreateErr       error
 		findOrCreateContainer Container
+		permittedSteps        []string
 	)
 
 	BeforeEach(func() {
@@ -87,6 +88,7 @@ var _ = Describe("Worker", func() {
 		platform = "some-platform"
 		tags = atc.Tags{"some", "tags"}
 		teamID = 17
+		permittedSteps = []string{"getStep", "taskStep", "checkStep"}
 		ephemeral = true
 		workerName = "some-worker"
 		workerVersion = "1.2.3"
@@ -214,6 +216,7 @@ var _ = Describe("Worker", func() {
 		fakeDBWorker.HTTPProxyURLReturns("http://proxy.com")
 		fakeDBWorker.HTTPSProxyURLReturns("https://proxy.com")
 		fakeDBWorker.NoProxyReturns("http://noproxy.com")
+		fakeDBWorker.PermittedStepsReturns(permittedSteps)
 
 		gardenWorker = NewGardenWorker(
 			fakeGardenClient,
@@ -539,8 +542,9 @@ var _ = Describe("Worker", func() {
 
 		BeforeEach(func() {
 			spec = WorkerSpec{
-				Tags:   []string{"some", "tags"},
-				TeamID: teamID,
+				Tags:     []string{"some", "tags"},
+				TeamID:   teamID,
+				StepType: "taskStep",
 			}
 		})
 
@@ -658,6 +662,22 @@ var _ = Describe("Worker", func() {
 		Context("when the type is not supported by the worker", func() {
 			BeforeEach(func() {
 				spec.ResourceType = "some-bogus-type"
+			})
+
+			It("returns false", func() {
+				Expect(satisfies).To(BeFalse())
+			})
+		})
+
+		Context("when the worker performs the step in the worker spec", func() {
+			It("returns true", func() {
+				Expect(satisfies).To(BeTrue())
+			})
+		})
+
+		Context("when the worker doesn't perform the step in the worker spec", func() {
+			BeforeEach(func() {
+				spec.StepType = "putStep"
 			})
 
 			It("returns false", func() {

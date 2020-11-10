@@ -124,22 +124,23 @@ func getWorkers(conn Conn, query sq.SelectBuilder) ([]Worker, error) {
 
 func scanWorker(worker *worker, row scannable) error {
 	var (
-		version       sql.NullString
-		addStr        sql.NullString
-		state         string
-		bcURLStr      sql.NullString
-		certsPathStr  sql.NullString
-		httpProxyURL  sql.NullString
-		httpsProxyURL sql.NullString
-		noProxy       sql.NullString
-		resourceTypes []byte
-		platform      sql.NullString
-		tags          []byte
-		teamName      sql.NullString
-		teamID        sql.NullInt64
-		startTime     pq.NullTime
-		expiresAt     pq.NullTime
-		ephemeral     sql.NullBool
+		version        sql.NullString
+		addStr         sql.NullString
+		state          string
+		bcURLStr       sql.NullString
+		certsPathStr   sql.NullString
+		httpProxyURL   sql.NullString
+		httpsProxyURL  sql.NullString
+		noProxy        sql.NullString
+		resourceTypes  []byte
+		platform       sql.NullString
+		tags           []byte
+		teamName       sql.NullString
+		teamID         sql.NullInt64
+		startTime      pq.NullTime
+		expiresAt      pq.NullTime
+		ephemeral      sql.NullBool
+		permittedSteps sql.NullString
 	)
 
 	err := row.Scan(
@@ -162,6 +163,7 @@ func scanWorker(worker *worker, row scannable) error {
 		&startTime,
 		&expiresAt,
 		&ephemeral,
+		&permittedSteps,
 	)
 	if err != nil {
 		return err
@@ -213,6 +215,10 @@ func scanWorker(worker *worker, row scannable) error {
 
 	if ephemeral.Valid {
 		worker.ephemeral = ephemeral.Bool
+	}
+
+	if permittedSteps.Valid {
+		worker.permittedSteps = permittedSteps.String
 	}
 
 	err = json.Unmarshal(resourceTypes, &worker.resourceTypes)
@@ -411,6 +417,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		string(workerState),
 		teamID,
 		atcWorker.Ephemeral,
+		atcWorker.PermittedSteps,
 	}
 
 	conflictValues := values
@@ -442,6 +449,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 			"state",
 			"team_id",
 			"ephemeral",
+			"permitted_steps",
 		).
 		Values(append([]interface{}{
 			sq.Expr(expires),
@@ -466,7 +474,8 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 				version = ?,
 				state = ?,
 				team_id = ?,
-				ephemeral = ?
+				ephemeral = ?,
+				permitted_steps = ?
 			WHERE `+matchTeamUpsert,
 			conflictValues...,
 		).
@@ -509,6 +518,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		teamID:           workerTeamID,
 		startTime:        time.Unix(atcWorker.StartTime, 0),
 		ephemeral:        atcWorker.Ephemeral,
+		permittedSteps:   atcWorker.PermittedSteps,
 		conn:             conn,
 	}
 

@@ -706,6 +706,7 @@ func (worker *gardenWorker) BuildContainers() int {
 func (worker *gardenWorker) Satisfies(logger lager.Logger, spec WorkerSpec) bool {
 	workerTeamID := worker.dbWorker.TeamID()
 	workerResourceTypes := worker.dbWorker.ResourceTypes()
+	workerStepTypes := worker.dbWorker.PermittedSteps()
 
 	if spec.TeamID != workerTeamID && workerTeamID != 0 {
 		return false
@@ -725,6 +726,18 @@ func (worker *gardenWorker) Satisfies(logger lager.Logger, spec WorkerSpec) bool
 		}
 	}
 
+	matchedStep := false
+	fmt.Printf("steptype: %v \n", spec.StepType)
+	for _, s := range workerStepTypes {
+		fmt.Printf("step: %v \n", s)
+		fmt.Println(matchedStep)
+		matchedStep = matchedStep || s == spec.StepType
+	}
+
+	if !matchedStep {
+		return false
+	}
+
 	if spec.Platform != "" {
 		if spec.Platform != worker.dbWorker.Platform() {
 			return false
@@ -735,6 +748,7 @@ func (worker *gardenWorker) Satisfies(logger lager.Logger, spec WorkerSpec) bool
 		return false
 	}
 
+	fmt.Println("I'm returning!!!!!!")
 	return true
 }
 
