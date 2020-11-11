@@ -11,15 +11,17 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerctx"
+	"github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/atc/worker/transport"
 )
 
 type Retriable struct {
 	Cause error
+	Count int
 }
 
 func (r Retriable) Error() string {
-	return fmt.Sprintf("retriable: %s", r.Cause.Error())
+	return fmt.Sprintf("retriable: attempt %d: %s", r.Count, r.Cause.Error())
 }
 
 type RetryErrorStep struct {
@@ -50,7 +52,12 @@ func (step RetryErrorStep) Run(ctx context.Context, state RunState) (bool, error
 		logger.Info("retriable", lager.Data{"error": runErr.Error()})
 		delegate := step.delegateFactory.BuildStepDelegate(state)
 		delegate.Errored(logger, fmt.Sprintf("%s, will retry ...", runErr.Error()))
-		runErr = Retriable{runErr}
+		var r Retriable
+		if errors.As(runErr, &r) {
+			runErr = Retriable{r.Cause, r.Count + 1}
+		} else {
+			runErr = Retriable{runErr, 0}
+		}
 	}
 	return runOk, runErr
 }
@@ -63,6 +70,10 @@ func (step RetryErrorStep) toRetry(logger lager.Logger, err error) bool {
 			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err.Error()})
 		return true
 	} else if errors.As(err, &netError) || regexp.MustCompile(`worker .+ disappeared`).MatchString(err.Error()) {
+		logger.Debug("retry-error",
+			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err})
+		return true
+	} else if errors.As(err, &worker.ErrNoWorkers) {
 		logger.Debug("retry-error",
 			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err})
 		return true
