@@ -11,6 +11,7 @@ import (
 	"code.cloudfoundry.org/lager/lagerctx"
 
 	"github.com/concourse/concourse/atc/db"
+	"github.com/concourse/concourse/atc/policy"
 )
 
 var (
@@ -51,14 +52,19 @@ type VolumeFinder interface {
 }
 
 type pool struct {
-	provider WorkerProvider
-	rand     *rand.Rand
+	provider      WorkerProvider
+	rand          *rand.Rand
+	policyChecker policy.Checker
 }
 
-func NewPool(provider WorkerProvider) Pool {
+func NewPool(
+	provider WorkerProvider,
+	policyChecker policy.Checker,
+) Pool {
 	return &pool{
-		provider: provider,
-		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
+		provider:      provider,
+		rand:          rand.New(rand.NewSource(time.Now().UnixNano())),
+		policyChecker: policyChecker,
 	}
 }
 
@@ -202,6 +208,28 @@ dance:
 	}
 
 	if worker == nil {
+		if pool.policyChecker.ShouldCheckAction(policy.ActionSelectWorker) {
+			allowedWorkers := []Worker{}
+			for _, compatibleWorker := range compatibleWorkers {
+				checkInput := policy.PolicyCheckInput{
+					Action:   policy.ActionSelectWorker,
+					Team:     string(workerSpec.TeamID),
+					Pipeline: "",
+					Data:     compatibleWorker,
+				}
+				if result, err := pool.policyChecker.Check(checkInput); err != nil && result.Allowed {
+					allowedWorkers = append(allowedWorkers, compatibleWorker)
+				}
+			}
+			compatibleWorkers = allowedWorkers
+		}
+
+		if len(compatibleWorkers) == 0 {
+			return nil, NoCompatibleWorkersError{
+				Spec: workerSpec,
+			}
+		}
+
 		worker, err = strategy.Choose(logger, compatibleWorkers, containerSpec)
 		if err != nil {
 			return nil, err

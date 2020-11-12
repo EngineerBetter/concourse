@@ -3,10 +3,14 @@ package concourse
 default decision = {"allowed": true}
 
 # uncomment to include deny rules
-#decision = {"allowed": false, "reasons": reasons} {
-#  count(deny) > 0
-#  reasons := deny
-#}
+decision = {"allowed": false, "reasons": reasons} {
+  count(deny) > 0
+  reasons := deny
+}
+
+deny["worker not allowed"] {
+  input.action == "SelectWorker"
+}
 
 deny["cannot use docker-image types"] {
   input.action == "UseImage"

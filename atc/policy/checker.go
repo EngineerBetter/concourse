@@ -8,7 +8,10 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
-const ActionUseImage = "UseImage"
+const (
+	ActionUseImage     = "UseImage"
+	ActionSelectWorker = "SelectWorker"
+)
 
 type PolicyCheckNotPass struct {
 	Reasons []string
