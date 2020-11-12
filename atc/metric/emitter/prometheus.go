@@ -53,6 +53,7 @@ type PrometheusEmitter struct {
 	checksEnqueued  prometheus.Counter
 
 	volumesStreamed prometheus.Counter
+	retriedErrors   *prometheus.CounterVec
 
 	workerContainers        *prometheus.GaugeVec
 	workerUnknownContainers *prometheus.GaugeVec
@@ -403,6 +404,17 @@ func (config *PrometheusConfig) NewEmitter() (metric.Emitter, error) {
 	)
 	prometheus.MustRegister(volumesStreamed)
 
+	retriedErrors := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "concourse",
+			Subsystem: "workers",
+			Name:      "retried_errors",
+			Help:      "Number of worker errors that have been automatically retried",
+		},
+		[]string{"error_type"},
+	)
+	prometheus.MustRegister(retriedErrors)
+
 	listener, err := net.Listen("tcp", config.bind())
 	if err != nil {
 		return nil, err
@@ -457,6 +469,7 @@ func (config *PrometheusConfig) NewEmitter() (metric.Emitter, error) {
 		workerUnknownVolumes:    workerUnknownVolumes,
 
 		volumesStreamed: volumesStreamed,
+		retriedErrors:   retriedErrors,
 	}
 	go emitter.periodicMetricGC()
 
@@ -534,6 +547,8 @@ func (emitter *PrometheusEmitter) Emit(logger lager.Logger, event metric.Event) 
 		emitter.checksQueueSize.Set(event.Value)
 	case "volumes streamed":
 		emitter.volumesStreamed.Add(event.Value)
+	case "retried errors":
+		emitter.retriedErrors.WithLabelValues(event.Attributes["error_type"]).Add(event.Value)
 	default:
 		// unless we have a specific metric, we do nothing
 	}

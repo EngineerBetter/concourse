@@ -8,8 +8,11 @@ decision = {"allowed": false, "reasons": reasons} {
   reasons := deny
 }
 
-deny["worker not allowed"] {
+deny[msg] {
   input.action == "SelectWorker"
+  input.data.container_spec.Type != "check"
+  regex.match("concourse-check-worker-.*", input.data.selected_worker.name)
+  msg := sprintf("only check containers can run on %s", [input.data.selected_worker.name])
 }
 
 deny["cannot use docker-image types"] {
