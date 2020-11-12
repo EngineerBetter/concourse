@@ -762,7 +762,7 @@ func (cmd *RunCommand) constructAPIMembers(
 		cmd.GardenRequestTimeout,
 	)
 
-	pool := worker.NewPool(workerProvider)
+	pool := worker.NewPool(workerProvider, policyChecker)
 	workerClient := worker.NewClient(pool, workerProvider, compressionLib, workerAvailabilityPollingInterval, workerStatusPublishInterval)
 
 	credsManagers := cmd.CredentialManagers
@@ -1013,7 +1013,7 @@ func (cmd *RunCommand) backendComponents(
 		cmd.GardenRequestTimeout,
 	)
 
-	pool := worker.NewPool(workerProvider)
+	pool := worker.NewPool(workerProvider, policyChecker)
 	workerClient := worker.NewClient(pool,
 		workerProvider,
 		compressionLib,
