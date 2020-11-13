@@ -173,14 +173,15 @@ func tick(logger lager.Logger, m *Monitor) {
 		)
 	}
 
-	for errorType, counter := range m.RetriedErrors {
+	for labels, counter := range m.RetriedErrors {
 		m.emit(
 			logger.Session("retried-errors"),
 			Event{
 				Name:  "retried errors",
 				Value: counter.Delta(),
 				Attributes: map[string]string{
-					"error_type": string(errorType),
+					"error_type": string(labels.RetryableError),
+					"team":       labels.TeamName,
 				},
 			},
 		)

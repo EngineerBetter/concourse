@@ -411,7 +411,7 @@ func (config *PrometheusConfig) NewEmitter() (metric.Emitter, error) {
 			Name:      "retried_errors",
 			Help:      "Number of worker errors that have been automatically retried",
 		},
-		[]string{"error_type"},
+		[]string{"error_type", "team"},
 	)
 	prometheus.MustRegister(retriedErrors)
 
@@ -548,7 +548,10 @@ func (emitter *PrometheusEmitter) Emit(logger lager.Logger, event metric.Event) 
 	case "volumes streamed":
 		emitter.volumesStreamed.Add(event.Value)
 	case "retried errors":
-		emitter.retriedErrors.WithLabelValues(event.Attributes["error_type"]).Add(event.Value)
+		emitter.retriedErrors.WithLabelValues(
+			event.Attributes["error_type"],
+			event.Attributes["team"],
+		).Add(event.Value)
 	default:
 		// unless we have a specific metric, we do nothing
 	}

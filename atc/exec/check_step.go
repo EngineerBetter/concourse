@@ -75,10 +75,6 @@ func NewCheckStep(
 }
 
 func (step *CheckStep) Run(ctx context.Context, state RunState) (bool, error) {
-	ctx = context.WithValue(ctx, "team", step.metadata.TeamName)
-	ctx = context.WithValue(ctx, "pipeline", step.metadata.PipelineName)
-	ctx = context.WithValue(ctx, "job", step.metadata.JobName)
-
 	attrs := tracing.Attrs{
 		"name": step.plan.Name,
 	}

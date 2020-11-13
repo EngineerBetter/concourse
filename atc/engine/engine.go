@@ -221,6 +221,9 @@ func (b *engineBuild) Run(ctx context.Context) {
 				runErr = err
 			}
 		}()
+		ctx = context.WithValue(ctx, "team", b.build.TeamName())
+		ctx = context.WithValue(ctx, "pipeline", b.build.PipelineName())
+		ctx = context.WithValue(ctx, "job", b.build.JobName())
 
 		succeeded, runErr = state.Run(lagerctx.NewContext(ctx, logger), b.build.PrivatePlan())
 	}()
