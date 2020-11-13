@@ -70,7 +70,7 @@ type Monitor struct {
 	ConcurrentRequestsLimitHit map[string]*Counter
 
 	VolumesStreamed Counter
-	RetriedErrors   map[RetryableError]*Counter
+	RetriedErrors   map[RetriedErrorsLabels]*Counter
 }
 
 var Metrics = NewMonitor()
@@ -80,7 +80,7 @@ func NewMonitor() *Monitor {
 		TasksWaiting:               map[TasksWaitingLabels]*Gauge{},
 		ConcurrentRequests:         map[string]*Gauge{},
 		ConcurrentRequestsLimitHit: map[string]*Counter{},
-		RetriedErrors:              map[RetryableError]*Counter{},
+		RetriedErrors:              map[RetriedErrorsLabels]*Counter{},
 	}
 }
 

@@ -56,10 +56,12 @@ func (step RetryErrorStep) Run(ctx context.Context, state RunState) (bool, error
 			logger.Info("retriable", lager.Data{"error": runErr.Error()})
 			delegate := step.delegateFactory.BuildStepDelegate(state)
 			delegate.Errored(logger, fmt.Sprintf("%s, will retry ...", runErr.Error()))
-			if _, ok := metric.Metrics.RetriedErrors[errorType]; !ok {
-				metric.Metrics.RetriedErrors[errorType] = &metric.Counter{}
+			team, _ := ctx.Value("team").(string)
+			retriedErrorsLabels := metric.RetriedErrorsLabels{RetryableError: errorType, TeamName: team}
+			if _, ok := metric.Metrics.RetriedErrors[retriedErrorsLabels]; !ok {
+				metric.Metrics.RetriedErrors[retriedErrorsLabels] = &metric.Counter{}
 			}
-			metric.Metrics.RetriedErrors[errorType].Inc()
+			metric.Metrics.RetriedErrors[retriedErrorsLabels].Inc()
 			var r Retriable
 			if errors.As(runErr, &r) {
 				runErr = Retriable{r.Cause, r.Count + 1}
