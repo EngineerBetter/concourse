@@ -15,6 +15,13 @@ deny[msg] {
   msg := sprintf("only check containers can run on %s", [input.data.selected_worker.name])
 }
 
+deny[msg] {
+  input.action == "SelectWorker"
+  input.data.container_spec.Type == "check"
+  not regex.match("concourse-check-worker-.*", input.data.selected_worker.name)
+  msg := sprintf("check containers cannot run on %s", [input.data.selected_worker.name])
+}
+
 deny["cannot use docker-image types"] {
   input.action == "UseImage"
   input.data.image_type == "docker-image"

@@ -58,7 +58,7 @@ services:
       CONCOURSE_BIND_PORT: 7877
       CONCOURSE_BAGGAGECLAIM_BIND_PORT: 7888
       CONCOURSE_GARDEN_DNS_PROXY_ENABLE: "true"
-      CONCOURSE_NAME: concourse-worker-evil-0
+      CONCOURSE_NAME: concourse-worker-main-0
 
   check-worker:
     build: .
@@ -81,4 +81,4 @@ services:
       CONCOURSE_BIND_IP: 0.0.0.0
       CONCOURSE_BAGGAGECLAIM_BIND_IP: 0.0.0.0
       CONCOURSE_GARDEN_DNS_PROXY_ENABLE: "true"
-      CONCOURSE_NAME: concourse-check-worker-evil-0
+      CONCOURSE_NAME: concourse-check-worker-main-0
