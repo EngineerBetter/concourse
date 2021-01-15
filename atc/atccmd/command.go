@@ -766,6 +766,7 @@ func (cmd *RunCommand) constructAPIMembers(
 	dbTaskCacheFactory := db.NewTaskCacheFactory(dbConn)
 	dbVolumeRepository := db.NewVolumeRepository(dbConn)
 	dbWorkerFactory := db.NewWorkerFactory(workerConn)
+	dbContainerRepository := db.NewContainerRepository(dbConn)
 	workerVersion, err := workerVersion()
 	if err != nil {
 		return nil, err
@@ -788,6 +789,7 @@ func (cmd *RunCommand) constructAPIMembers(
 		dbVolumeRepository,
 		teamFactory,
 		dbWorkerFactory,
+		dbContainerRepository,
 		workerVersion,
 		cmd.BaggageclaimResponseHeaderTimeout,
 		cmd.GardenRequestTimeout,
@@ -800,7 +802,6 @@ func (cmd *RunCommand) constructAPIMembers(
 	dbPipelineFactory := db.NewPipelineFactory(dbConn, lockFactory)
 	dbJobFactory := db.NewJobFactory(dbConn, lockFactory)
 	dbResourceFactory := db.NewResourceFactory(dbConn, lockFactory)
-	dbContainerRepository := db.NewContainerRepository(dbConn)
 	gcContainerDestroyer := gc.NewDestroyer(logger, dbContainerRepository, dbVolumeRepository)
 	dbBuildFactory := db.NewBuildFactory(dbConn, lockFactory, cmd.GC.OneOffBuildGracePeriod, cmd.GC.FailedGracePeriod)
 	dbCheckFactory := db.NewCheckFactory(dbConn, lockFactory, secretManager, cmd.varSourcePool, db.CheckDurations{
@@ -1016,6 +1017,7 @@ func (cmd *RunCommand) backendComponents(
 	dbWorkerTaskCacheFactory := db.NewWorkerTaskCacheFactory(dbConn)
 	dbVolumeRepository := db.NewVolumeRepository(dbConn)
 	dbWorkerFactory := db.NewWorkerFactory(dbConn)
+	dbContainerRepository := db.NewContainerRepository(dbConn)
 	workerVersion, err := workerVersion()
 	if err != nil {
 		return nil, err
@@ -1040,6 +1042,7 @@ func (cmd *RunCommand) backendComponents(
 		dbVolumeRepository,
 		teamFactory,
 		dbWorkerFactory,
+		dbContainerRepository,
 		workerVersion,
 		cmd.BaggageclaimResponseHeaderTimeout,
 		cmd.GardenRequestTimeout,
