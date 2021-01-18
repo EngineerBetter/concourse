@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 type ContainerPlacementStrategyOptions struct {
-	ContainerPlacementStrategy   []string `long:"container-placement-strategy" default:"volume-locality" choice:"volume-locality" choice:"random" choice:"fewest-build-containers" choice:"limit-active-tasks" choice:"limit-active-containers" choice:"limit-active-volumes" description:"Method by which a worker is selected during container placement. If multiple methods are specified, they will be applied in order. Random strategy should only be used alone."`
+	ContainerPlacementStrategy   []string `long:"container-placement-strategy" default:"volume-locality" choice:"volume-locality" choice:"random" choice:"fewest-build-containers" choice:"limit-active-tasks" choice:"limit-active-containers" choice:"limit-active-volumes" choice:"limit-total-allocated-memory" description:"Method by which a worker is selected during container placement. If multiple methods are specified, they will be applied in order. Random strategy should only be used alone."`
 	MaxActiveTasksPerWorker      int      `long:"max-active-tasks-per-worker" default:"0" description:"Maximum allowed number of active build tasks per worker. Has effect only when used with limit-active-tasks placement strategy. 0 means no limit."`
 	MaxActiveContainersPerWorker int      `long:"max-active-containers-per-worker" default:"0" description:"Maximum allowed number of active containers per worker. Has effect only when used with limit-active-containers placement strategy. 0 means no limit."`
 	MaxActiveVolumesPerWorker    int      `long:"max-active-volumes-per-worker" default:"0" description:"Maximum allowed number of active volumes per worker. Has effect only when used with limit-active-volumes placement strategy. 0 means no limit."`
@@ -20,10 +23,16 @@ type ContainerPlacementStrategyOptions struct {
 
 type NoWorkerFitContainerPlacementStrategyError struct {
 	Strategy string
+	Reason   string
 }
 
 func (err NoWorkerFitContainerPlacementStrategyError) Error() string {
-	return fmt.Sprintf("no worker fit container placement strategy: %s", err.Strategy)
+	message := strings.Builder{}
+	message.WriteString(fmt.Sprintf("no worker fit container placement strategy: %s", err.Strategy))
+	if err.Reason != "" {
+		message.WriteString(fmt.Sprintf(", reason: %s", err.Reason))
+	}
+	return message.String()
 }
 
 type ContainerPlacementStrategy interface {
@@ -43,7 +52,7 @@ type containerPlacementStrategy struct {
 	nodes []ContainerPlacementStrategyChainNode
 }
 
-func NewContainerPlacementStrategy(opts ContainerPlacementStrategyOptions) (*containerPlacementStrategy, error) {
+func NewContainerPlacementStrategy(opts ContainerPlacementStrategyOptions, containerRepository db.ContainerRepository) (*containerPlacementStrategy, error) {
 	cps := &containerPlacementStrategy{nodes: []ContainerPlacementStrategyChainNode{}}
 	for _, strategy := range opts.ContainerPlacementStrategy {
 		strategy := strings.TrimSpace(strategy)
@@ -67,6 +76,8 @@ func NewContainerPlacementStrategy(opts ContainerPlacementStrategyOptions) (*con
 				return nil, errors.New("max-active-volumes-per-worker must be greater or equal than 0")
 			}
 			cps.nodes = append(cps.nodes, newLimitActiveVolumesPlacementStrategy(strategy, opts.MaxActiveVolumesPerWorker))
+		case "limit-total-allocated-memory":
+			cps.nodes = append(cps.nodes, newLimitTotalAllocatedMemoryPlacementStrategy(containerRepository))
 		case "volume-locality":
 			cps.nodes = append(cps.nodes, newVolumeLocalityPlacementStrategyNode(strategy))
 		default:
@@ -106,7 +117,7 @@ func (strategy *containerPlacementStrategy) ModifiesActiveTasks() bool {
 }
 
 func NewRandomPlacementStrategy() ContainerPlacementStrategy {
-	s, _ := NewContainerPlacementStrategy(ContainerPlacementStrategyOptions{ContainerPlacementStrategy: []string{"random"}})
+	s, _ := NewContainerPlacementStrategy(ContainerPlacementStrategyOptions{ContainerPlacementStrategy: []string{"random"}}, nil)
 	return s
 }
 
@@ -292,4 +303,59 @@ func (strategy *LimitActiveVolumesPlacementStrategyNode) ModifiesActiveTasks() b
 
 func (strategy *LimitActiveVolumesPlacementStrategyNode) StrategyName() string {
 	return strategy.GivenName
+}
+
+type LimitTotalAllocatedMemoryPlacementStrategy struct {
+	containerRepository db.ContainerRepository
+}
+
+func newLimitTotalAllocatedMemoryPlacementStrategy(containerRepository db.ContainerRepository) ContainerPlacementStrategyChainNode {
+	return &LimitTotalAllocatedMemoryPlacementStrategy{
+		containerRepository: containerRepository,
+	}
+}
+
+func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) Choose(logger lager.Logger, workers []Worker, spec ContainerSpec) ([]Worker, error) {
+	candidates := []Worker{}
+	requestedMemory := atc.MemoryLimit(0)
+	if spec.Limits.Memory != nil {
+		requestedMemory = atc.MemoryLimit(*spec.Limits.Memory)
+	}
+
+	for _, w := range workers {
+		if w.AllocatableMemory() == nil {
+			candidates = append(candidates, w)
+			continue
+		}
+
+		allocatedMemory, err := strategy.containerRepository.GetActiveContainerMemoryAllocation(w.Name())
+		if err != nil {
+			return nil, err
+		}
+		logger.Debug("container-requested-resources-from-worker", lager.Data{
+			"worker":           w.Name(),
+			"requested_memory": requestedMemory,
+			"allocated_memory": allocatedMemory,
+		})
+
+		if (allocatedMemory + requestedMemory) < *w.AllocatableMemory() {
+			candidates = append(candidates, w)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil, NoWorkerFitContainerPlacementStrategyError{
+			Strategy: strategy.StrategyName(),
+			Reason:   message.NewPrinter(language.English).Sprintf("task requested %d bytes of memory and no workers had enough available memory", requestedMemory),
+		}
+	}
+	return candidates, nil
+}
+
+func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) ModifiesActiveTasks() bool {
+	return false
+}
+
+func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) StrategyName() string {
+	return "limit-total-allocated-memory"
 }
