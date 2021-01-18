@@ -55,10 +55,12 @@ var _ = Describe("TaskStep", func() {
 		stepOk   bool
 		stepErr  error
 
+		memoryLimit       = atc.MemoryLimit(1024)
 		containerMetadata = db.ContainerMetadata{
 			WorkingDirectory: "some-artifact-root",
 			Type:             db.ContainerTypeTask,
 			StepName:         "some-step",
+			MemoryLimit:      &memoryLimit,
 		}
 
 		stepMetadata = exec.StepMetadata{
