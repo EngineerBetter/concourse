@@ -61,6 +61,7 @@ type Worker interface {
 	NoProxy() string
 	ActiveVolumes() int
 	ResourceTypes() []atc.WorkerResourceType
+	AllocatableResources() *atc.ContainerLimits
 	Platform() string
 	Tags() []string
 	TeamID() int
@@ -87,25 +88,26 @@ type Worker interface {
 type worker struct {
 	conn Conn
 
-	name            string
-	version         *string
-	state           WorkerState
-	gardenAddr      *string
-	baggageclaimURL *string
-	httpProxyURL    string
-	httpsProxyURL   string
-	noProxy         string
-	activeVolumes   int
-	activeTasks     int
-	resourceTypes   []atc.WorkerResourceType
-	platform        string
-	tags            []string
-	teamID          int
-	teamName        string
-	startTime       time.Time
-	expiresAt       time.Time
-	certsPath       *string
-	ephemeral       bool
+	name                 string
+	version              *string
+	state                WorkerState
+	gardenAddr           *string
+	baggageclaimURL      *string
+	httpProxyURL         string
+	httpsProxyURL        string
+	noProxy              string
+	activeVolumes        int
+	activeTasks          int
+	resourceTypes        []atc.WorkerResourceType
+	allocatableResources *atc.ContainerLimits
+	platform             string
+	tags                 []string
+	teamID               int
+	teamName             string
+	startTime            time.Time
+	expiresAt            time.Time
+	certsPath            *string
+	ephemeral            bool
 }
 
 func (worker *worker) Name() string             { return worker.name }
@@ -115,16 +117,17 @@ func (worker *worker) GardenAddr() *string      { return worker.gardenAddr }
 func (worker *worker) CertsPath() *string       { return worker.certsPath }
 func (worker *worker) BaggageclaimURL() *string { return worker.baggageclaimURL }
 
-func (worker *worker) HTTPProxyURL() string                    { return worker.httpProxyURL }
-func (worker *worker) HTTPSProxyURL() string                   { return worker.httpsProxyURL }
-func (worker *worker) NoProxy() string                         { return worker.noProxy }
-func (worker *worker) ActiveVolumes() int                      { return worker.activeVolumes }
-func (worker *worker) ResourceTypes() []atc.WorkerResourceType { return worker.resourceTypes }
-func (worker *worker) Platform() string                        { return worker.platform }
-func (worker *worker) Tags() []string                          { return worker.tags }
-func (worker *worker) TeamID() int                             { return worker.teamID }
-func (worker *worker) TeamName() string                        { return worker.teamName }
-func (worker *worker) Ephemeral() bool                         { return worker.ephemeral }
+func (worker *worker) HTTPProxyURL() string                       { return worker.httpProxyURL }
+func (worker *worker) HTTPSProxyURL() string                      { return worker.httpsProxyURL }
+func (worker *worker) NoProxy() string                            { return worker.noProxy }
+func (worker *worker) ActiveVolumes() int                         { return worker.activeVolumes }
+func (worker *worker) ResourceTypes() []atc.WorkerResourceType    { return worker.resourceTypes }
+func (worker *worker) AllocatableResources() *atc.ContainerLimits { return worker.allocatableResources }
+func (worker *worker) Platform() string                           { return worker.platform }
+func (worker *worker) Tags() []string                             { return worker.tags }
+func (worker *worker) TeamID() int                                { return worker.teamID }
+func (worker *worker) TeamName() string                           { return worker.teamName }
+func (worker *worker) Ephemeral() bool                            { return worker.ephemeral }
 
 func (worker *worker) StartTime() time.Time { return worker.startTime }
 func (worker *worker) ExpiresAt() time.Time { return worker.expiresAt }

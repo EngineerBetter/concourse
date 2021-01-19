@@ -16,8 +16,8 @@ type ContainerPlacementStrategyOptions struct {
 	MaxActiveTasksPerWorker      int      `long:"max-active-tasks-per-worker" default:"0" description:"Maximum allowed number of active build tasks per worker. Has effect only when used with limit-active-tasks placement strategy. 0 means no limit."`
 	MaxActiveContainersPerWorker int      `long:"max-active-containers-per-worker" default:"0" description:"Maximum allowed number of active containers per worker. Has effect only when used with limit-active-containers placement strategy. 0 means no limit."`
 	MaxActiveVolumesPerWorker    int      `long:"max-active-volumes-per-worker" default:"0" description:"Maximum allowed number of active volumes per worker. Has effect only when used with limit-active-volumes placement strategy. 0 means no limit."`
-	MaxCPUPerWorker              int      `long:"max-cpu-per-worker" default:"100" description:"Maximum number of CPU shares to allocate. Has effect only when used with limit-total-resources placement strategy."`
-	MaxMemoryPerWorker           int      `long:"max-memory-per-worker" default:"4294967296" description:"Maximum number of memory available to the worker in bytes. Has effect only when used with limit-total-resources placement strategy."`
+	DefaultCPUPerWorker          int      `long:"default-cpu-per-worker" description:"Default number of CPU shares to allocate. Has effect only when used with limit-total-resources placement strategy."`
+	DefaultMemoryPerWorker       int      `long:"default-memory-per-worker" description:"Default number of memory available to the worker in bytes. Has effect only when used with limit-total-resources placement strategy."`
 }
 
 type NoWorkerFitContainerPlacementStrategyError struct {
@@ -70,13 +70,13 @@ func NewContainerPlacementStrategy(opts ContainerPlacementStrategyOptions, conta
 			}
 			cps.nodes = append(cps.nodes, newLimitActiveVolumesPlacementStrategy(strategy, opts.MaxActiveVolumesPerWorker))
 		case "limit-total-resources":
-			if opts.MaxCPUPerWorker <= 0 {
+			if opts.DefaultCPUPerWorker <= 0 {
 				return nil, errors.New("max-cpu-per-worker must be greater than 0")
 			}
-			if opts.MaxMemoryPerWorker <= 0 {
+			if opts.DefaultMemoryPerWorker <= 0 {
 				return nil, errors.New("max-memory-per-worker must be greater than 0")
 			}
-			cps.nodes = append(cps.nodes, newLimitTotalResourcesPlacementStrategy(containerRepository, opts.MaxCPUPerWorker, opts.MaxMemoryPerWorker))
+			cps.nodes = append(cps.nodes, newLimitTotalResourcesPlacementStrategy(containerRepository, opts.DefaultCPUPerWorker, opts.DefaultMemoryPerWorker))
 		case "volume-locality":
 			cps.nodes = append(cps.nodes, newVolumeLocalityPlacementStrategyNode(strategy))
 		default:
@@ -305,16 +305,16 @@ func (strategy *LimitActiveVolumesPlacementStrategyNode) StrategyName() string {
 }
 
 type LimitTotalResourcesPlacementStrategy struct {
-	containerRepository db.ContainerRepository
-	maxCPU              int
-	maxMemory           int
+	containerRepository      db.ContainerRepository
+	defaultAllocatableCPU    int
+	defaultAllocatableMemory int
 }
 
-func newLimitTotalResourcesPlacementStrategy(containerRepository db.ContainerRepository, maxCPU, maxMemory int) ContainerPlacementStrategyChainNode {
+func newLimitTotalResourcesPlacementStrategy(containerRepository db.ContainerRepository, defaultAllocatableCPU, defaultAllocatableMemory int) ContainerPlacementStrategyChainNode {
 	return &LimitTotalResourcesPlacementStrategy{
-		containerRepository: containerRepository,
-		maxCPU:              maxCPU,
-		maxMemory:           maxMemory,
+		containerRepository:      containerRepository,
+		defaultAllocatableCPU:    defaultAllocatableCPU,
+		defaultAllocatableMemory: defaultAllocatableMemory,
 	}
 }
 
@@ -330,15 +330,26 @@ func (strategy *LimitTotalResourcesPlacementStrategy) Choose(logger lager.Logger
 	}
 
 	for _, w := range workers {
-		usedCPU, usedMemory := strategy.containerRepository.GetActiveContainerResources(w.Name())
+		allocatedCPU, allocatedMemory := strategy.containerRepository.GetActiveContainerResources(w.Name())
 		logger.Debug("container-requested-resources-from-worker", lager.Data{
 			"worker":           w.Name(),
 			"requested_cpu":    requestedCPU,
 			"requested_memory": requestedMemory,
-			"used_cpu":         usedCPU,
-			"used_memory":      usedMemory,
+			"allocated_cpu":    allocatedCPU,
+			"allocated_memory": allocatedMemory,
 		})
-		if (usedCPU+requestedCPU) < strategy.maxCPU && (usedMemory+requestedMemory) < strategy.maxMemory {
+
+		allocatableCPU := strategy.defaultAllocatableCPU
+		if w.AllocatableResources().CPU != nil {
+			allocatableCPU = int(*w.AllocatableResources().CPU)
+		}
+
+		allocatableMemory := strategy.defaultAllocatableMemory
+		if w.AllocatableResources().Memory != nil {
+			allocatableMemory = int(*w.AllocatableResources().Memory)
+		}
+
+		if (allocatedCPU+requestedCPU) < allocatableCPU && (allocatedMemory+requestedMemory) < allocatableMemory {
 			candidates = append(candidates, w)
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/concourse/baggageclaim/baggageclaimcmd"
 	bclient "github.com/concourse/baggageclaim/client"
 	"github.com/concourse/concourse"
+	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/worker/gclient"
 	concourseCmd "github.com/concourse/concourse/cmd"
 	"github.com/concourse/concourse/worker"
@@ -62,7 +63,14 @@ type WorkerCommand struct {
 
 	ResourceTypes flag.Dir `long:"resource-types" description:"Path to directory containing resource types the worker should advertise."`
 
+	AllocatableResources AllocatableResources `group:"Allocatable Resources" namespace:"allocatable"`
+
 	Logger flag.Lager
+}
+
+type AllocatableResources struct {
+	CPU    *int    `long:"cpu" description:"Number of allocatable CPU shares"`
+	Memory *string `long:"memory" description:"Amount of allocatable memory. Measured in bytes or KB, MB, GB (e.g. 4GB)"`
 }
 
 func (cmd *WorkerCommand) Execute(args []string) error {
@@ -87,6 +95,20 @@ func (cmd *WorkerCommand) Runner(args []string) (ifrit.Runner, error) {
 	}
 
 	atcWorker.Version = concourse.WorkerVersion
+
+	allocatableResources := atc.ContainerLimits{}
+	if cmd.AllocatableResources.CPU != nil {
+		cpu := atc.CPULimit(*cmd.AllocatableResources.CPU)
+		allocatableResources.CPU = &cpu
+	}
+	if cmd.AllocatableResources.Memory != nil {
+		memory, err := atc.ParseMemoryLimit(*cmd.AllocatableResources.Memory)
+		if err != nil {
+			return nil, err
+		}
+		allocatableResources.Memory = &memory
+	}
+	atcWorker.AllocatableResources = allocatableResources
 
 	baggageclaimRunner, err := cmd.baggageclaimRunner(logger.Session("baggageclaim"))
 	if err != nil {

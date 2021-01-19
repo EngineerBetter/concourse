@@ -59,7 +59,7 @@ func (step RetryErrorStep) Run(ctx context.Context, state RunState) (bool, error
 func (step RetryErrorStep) toRetry(logger lager.Logger, err error) bool {
 	var urlError *url.Error
 	var netError net.Error
-	var noWorkerError *worker.NoWorkerFitContainerPlacementStrategyError
+	var noWorkerError worker.NoWorkerFitContainerPlacementStrategyError
 	if errors.As(err, &transport.WorkerMissingError{}) || errors.As(err, &transport.WorkerUnreachableError{}) || errors.As(err, &urlError) {
 		logger.Debug("retry-error",
 			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err.Error()})

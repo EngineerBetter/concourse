@@ -20,7 +20,8 @@ type Worker struct {
 	ActiveVolumes    int `json:"active_volumes"`
 	ActiveTasks      int `json:"active_tasks"`
 
-	ResourceTypes []WorkerResourceType `json:"resource_types"`
+	ResourceTypes        []WorkerResourceType `json:"resource_types"`
+	AllocatableResources ContainerLimits      `json:"allocatable_resources"`
 
 	Platform  string   `json:"platform"`
 	Tags      []string `json:"tags"`

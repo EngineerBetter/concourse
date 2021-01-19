@@ -40,6 +40,7 @@ type Worker interface {
 	Description() string
 	Name() string
 	ResourceTypes() []atc.WorkerResourceType
+	AllocatableResources() *atc.ContainerLimits
 	Tags() atc.Tags
 	Uptime() time.Duration
 	IsOwnedByTeam() bool
@@ -782,6 +783,9 @@ insert_coin:
 	}
 
 	return true
+}
+func (worker *gardenWorker) AllocatableResources() *atc.ContainerLimits {
+	return worker.dbWorker.AllocatableResources()
 }
 
 func (worker *gardenWorker) ActiveTasks() (int, error) {
