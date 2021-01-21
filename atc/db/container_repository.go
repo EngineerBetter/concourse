@@ -20,7 +20,7 @@ type ContainerRepository interface {
 	RemoveMissingContainers(time.Duration) (int, error)
 	DestroyUnknownContainers(workerName string, reportedHandles []string) (int, error)
 	GetActiveContainerCount(workerName string) int
-	GetActiveContainerResources(workerName string) (int, int)
+	GetActiveContainerMemoryAllocation(workerName string) (atc.MemoryLimit, error)
 }
 
 type containerRepository struct {
@@ -294,19 +294,19 @@ func (repository *containerRepository) FindOrphanedContainers() ([]CreatingConta
 	return creatingContainers, createdContainers, destroyingContainers, nil
 }
 
-func (repository *containerRepository) GetActiveContainerResources(workerName string) (int, int) {
-	var totalCPU, totalMemory int
+func (repository *containerRepository) GetActiveContainerMemoryAllocation(workerName string) (atc.MemoryLimit, error) {
+	var totalMemory uint64
 	err := repository.conn.QueryRow(
-		"SELECT SUM(meta_cpu_limit), SUM(meta_memory_limit) FROM containers WHERE worker_name = $1 AND state IN ($2, $3)",
+		"SELECT COALESCE(SUM(meta_memory_limit), 0) FROM containers WHERE worker_name = $1 AND state IN ($2, $3)",
 		workerName,
 		atc.ContainerStateCreating,
 		atc.ContainerStateCreated,
-	).Scan(&totalCPU, &totalMemory)
+	).Scan(&totalMemory)
 	if err != nil {
-		return 0, 0
+		return 0, err
 	}
 
-	return totalCPU, totalMemory
+	return atc.MemoryLimit(totalMemory), nil
 }
 
 func (repository *containerRepository) GetActiveContainerCount(workerName string) int {

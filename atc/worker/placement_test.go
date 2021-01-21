@@ -5,6 +5,7 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
+	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/db/dbfakes"
 	. "github.com/concourse/concourse/atc/worker"
@@ -601,37 +602,36 @@ var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
 	})
 })
 
-var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
+var _ = Describe("LimitTotalAllocatedMemoryPlacementStrategy", func() {
 	Describe("Choose", func() {
 		var compatibleWorker1 *workerfakes.FakeWorker
 		var compatibleWorker2 *workerfakes.FakeWorker
-		var worker1UsedCPU int
-		var worker2UsedCPU int
-		var worker1UsedMemory int
-		var worker2UsedMemory int
-		var requestedCPU uint64
+		var worker1AllocatedMemory int
+		var worker2AllocatedMemory int
 		var requestedMemory uint64
-		var allocatableCPU int
-		var allocatableMemory int
 		var containerRepository *dbfakes.FakeContainerRepository
 
 		BeforeEach(func() {
-			logger = lagertest.NewTestLogger("build-containers-total-resources-test")
+			logger = lagertest.NewTestLogger("build-containers-total-allocated-memory-test")
 
 			compatibleWorker1 = new(workerfakes.FakeWorker)
 			compatibleWorker1.NameReturns("compatibleWorker1")
+			worker1AllocatableMemory := atc.MemoryLimit(2000)
+			compatibleWorker1.AllocatableMemoryReturns(&worker1AllocatableMemory)
 			compatibleWorker2 = new(workerfakes.FakeWorker)
 			compatibleWorker2.NameReturns("compatibleWorker2")
+			worker2AllocatableMemory := atc.MemoryLimit(2000)
+			compatibleWorker2.AllocatableMemoryReturns(&worker2AllocatableMemory)
 
 			containerRepository = new(dbfakes.FakeContainerRepository)
-			containerRepository.GetActiveContainerResourcesStub = func(worker string) (int, int) {
+			containerRepository.GetActiveContainerMemoryAllocationStub = func(worker string) (atc.MemoryLimit, error) {
 				switch worker {
 				case "compatibleWorker1":
-					return worker1UsedCPU, worker1UsedMemory
+					return atc.MemoryLimit(worker1AllocatedMemory), nil
 				case "compatibleWorker2":
-					return worker2UsedCPU, worker2UsedMemory
+					return atc.MemoryLimit(worker2AllocatedMemory), nil
 				default:
-					return 0, 0
+					return 0, nil
 				}
 			}
 			workers = []Worker{compatibleWorker1, compatibleWorker2}
@@ -639,11 +639,8 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 
 		JustBeforeEach(func() {
 			strategy, newStrategyError = NewContainerPlacementStrategy(ContainerPlacementStrategyOptions{
-				ContainerPlacementStrategy: []string{"limit-total-resources"},
-				DefaultCPUPerWorker:        allocatableCPU,
-				DefaultMemoryPerWorker:     allocatableMemory,
-			}, containerRepository,
-			)
+				ContainerPlacementStrategy: []string{"limit-total-allocated-memory"},
+			}, containerRepository)
 			Expect(newStrategyError).ToNot(HaveOccurred())
 
 			spec = ContainerSpec{
@@ -651,18 +648,16 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 				TeamID:    4567,
 				Inputs:    []InputSource{},
 				Limits: ContainerLimits{
-					CPU:    &requestedCPU,
 					Memory: &requestedMemory,
 				},
 			}
 		})
 
-		Context("when the CPU and memory are both below the max limit", func() {
+		Context("when the memory is below the max limit", func() {
 			BeforeEach(func() {
-				worker1UsedCPU, worker1UsedMemory = 0, 0
-				worker2UsedCPU, worker2UsedMemory = 0, 0
-				allocatableCPU, allocatableMemory = 100, 2000
-				requestedCPU, requestedMemory = 50, 1500
+				worker1AllocatedMemory = 0
+				worker2AllocatedMemory = 0
+				requestedMemory = 1500
 			})
 
 			It("return all workers", func() {
@@ -675,57 +670,14 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 					Expect(chooseErr).ToNot(HaveOccurred())
 					return chosenWorker
 				}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2)))
-			})
-		})
-
-		Context("when only CPU is provided", func() {
-			BeforeEach(func() {
-				worker1UsedCPU, worker1UsedMemory = 0, 0
-				worker2UsedCPU, worker2UsedMemory = 0, 0
-				allocatableCPU, allocatableMemory = 100, 2000
-				requestedCPU = 50
-			})
-
-			It("return all workers", func() {
-				Consistently(func() Worker {
-					chosenWorker, chooseErr = strategy.Choose(
-						logger,
-						workers,
-						spec,
-					)
-					Expect(chooseErr).ToNot(HaveOccurred())
-					return chosenWorker
-				}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2)))
-			})
-		})
-
-		Context("when the CPU is above the max limit", func() {
-			BeforeEach(func() {
-				worker1UsedCPU, worker1UsedMemory = 75, 1000
-				worker2UsedCPU, worker2UsedMemory = 0, 0
-				allocatableCPU, allocatableMemory = 100, 2000
-				requestedCPU, requestedMemory = 50, 500
-			})
-
-			It("return only workers with enough available CPU", func() {
-				Consistently(func() Worker {
-					chosenWorker, chooseErr = strategy.Choose(
-						logger,
-						workers,
-						spec,
-					)
-					Expect(chooseErr).ToNot(HaveOccurred())
-					return chosenWorker
-				}).Should(Equal(compatibleWorker2))
 			})
 		})
 
 		Context("when the memory is above the max limit", func() {
 			BeforeEach(func() {
-				worker1UsedCPU, worker1UsedMemory = 0, 1500
-				worker2UsedCPU, worker2UsedMemory = 0, 0
-				allocatableCPU, allocatableMemory = 100, 2000
-				requestedCPU, requestedMemory = 50, 1000
+				worker1AllocatedMemory = 1500
+				worker2AllocatedMemory = 0
+				requestedMemory = 1000
 			})
 
 			It("return only workers with enough available memory", func() {
@@ -741,24 +693,38 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 			})
 		})
 
-		Context("when both the memory and CPU are above the max limit", func() {
+		Context("when a worker does not configure allocatable memory", func() {
+			var noAllocatableMemoryWorker *workerfakes.FakeWorker
+
 			BeforeEach(func() {
-				worker1UsedCPU, worker1UsedMemory = 75, 1500
-				worker2UsedCPU, worker2UsedMemory = 0, 0
-				allocatableCPU, allocatableMemory = 100, 2000
-				requestedCPU, requestedMemory = 50, 1000
+				worker1AllocatedMemory = 1500
+				worker2AllocatedMemory = 1500
+				requestedMemory = 1000
+				noAllocatableMemoryWorker = new(workerfakes.FakeWorker)
+				noAllocatableMemoryWorker.NameReturns("noAllocatableMemoryWorker")
+				noAllocatableMemoryWorker.AllocatableMemoryReturns(nil)
 			})
 
-			It("return only workers with enough available CPU and memory", func() {
+			It("always returns workers without a configured allocatable memory", func() {
 				Consistently(func() Worker {
 					chosenWorker, chooseErr = strategy.Choose(
 						logger,
-						workers,
+						[]Worker{compatibleWorker1, compatibleWorker2, noAllocatableMemoryWorker},
 						spec,
 					)
 					Expect(chooseErr).ToNot(HaveOccurred())
 					return chosenWorker
-				}).Should(Equal(compatibleWorker2))
+				}).Should(Equal(noAllocatableMemoryWorker))
+			})
+
+			It("does not get allocated resources for workers without a configured allocatable memory", func() {
+				chosenWorker, chooseErr = strategy.Choose(
+					logger,
+					[]Worker{noAllocatableMemoryWorker},
+					spec,
+				)
+				Expect(chooseErr).ToNot(HaveOccurred())
+				Expect(containerRepository.GetActiveContainerMemoryAllocationCallCount()).To(Equal(0))
 			})
 		})
 	})

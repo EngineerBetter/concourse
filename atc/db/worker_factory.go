@@ -47,7 +47,6 @@ var workersQuery = psql.Select(`
 		w.no_proxy,
 		w.active_volumes,
 		w.resource_types,
-		w.allocatable_cpu,
 		w.allocatable_memory,
 		w.platform,
 		w.tags,
@@ -134,7 +133,6 @@ func scanWorker(worker *worker, row scannable) error {
 		httpsProxyURL     sql.NullString
 		noProxy           sql.NullString
 		resourceTypes     []byte
-		allocatableCPU    sql.NullInt64
 		allocatableMemory sql.NullInt64
 		platform          sql.NullString
 		tags              []byte
@@ -157,7 +155,6 @@ func scanWorker(worker *worker, row scannable) error {
 		&noProxy,
 		&worker.activeVolumes,
 		&resourceTypes,
-		&allocatableCPU,
 		&allocatableMemory,
 		&platform,
 		&tags,
@@ -224,15 +221,9 @@ func scanWorker(worker *worker, row scannable) error {
 		return err
 	}
 
-	worker.allocatableResources = atc.ContainerLimits{}
-	if allocatableCPU.Valid {
-		cpu := atc.CPULimit(allocatableCPU.Int64)
-		worker.allocatableResources.CPU = &cpu
-	}
-
 	if allocatableMemory.Valid {
-		memory := atc.MemoryLimit(allocatableMemory.Int64)
-		worker.allocatableResources.Memory = &memory
+		memoryLimit := atc.MemoryLimit(allocatableMemory.Int64)
+		worker.allocatableMemory = &memoryLimit
 	}
 
 	return json.Unmarshal(tags, &worker.tags)
@@ -412,8 +403,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		atcWorker.GardenAddr,
 		atcWorker.ActiveVolumes,
 		resourceTypes,
-		atcWorker.AllocatableResources.CPU,
-		atcWorker.AllocatableResources.Memory,
+		atcWorker.AllocatableMemory,
 		tags,
 		atcWorker.Platform,
 		atcWorker.BaggageclaimURL,
@@ -444,7 +434,6 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 			"addr",
 			"active_volumes",
 			"resource_types",
-			"allocatable_cpu",
 			"allocatable_memory",
 			"tags",
 			"platform",
@@ -470,7 +459,6 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 				addr = ?,
 				active_volumes = ?,
 				resource_types = ?,
-				allocatable_cpu = ?,
 				allocatable_memory = ?,
 				tags = ?,
 				platform = ?,
@@ -508,25 +496,25 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 	}
 
 	savedWorker := &worker{
-		name:                 atcWorker.Name,
-		version:              workerVersion,
-		state:                workerState,
-		gardenAddr:           &atcWorker.GardenAddr,
-		baggageclaimURL:      &atcWorker.BaggageclaimURL,
-		certsPath:            atcWorker.CertsPath,
-		httpProxyURL:         atcWorker.HTTPProxyURL,
-		httpsProxyURL:        atcWorker.HTTPSProxyURL,
-		noProxy:              atcWorker.NoProxy,
-		activeVolumes:        atcWorker.ActiveVolumes,
-		resourceTypes:        atcWorker.ResourceTypes,
-		allocatableResources: atcWorker.AllocatableResources,
-		platform:             atcWorker.Platform,
-		tags:                 atcWorker.Tags,
-		teamName:             atcWorker.Team,
-		teamID:               workerTeamID,
-		startTime:            time.Unix(atcWorker.StartTime, 0),
-		ephemeral:            atcWorker.Ephemeral,
-		conn:                 conn,
+		name:              atcWorker.Name,
+		version:           workerVersion,
+		state:             workerState,
+		gardenAddr:        &atcWorker.GardenAddr,
+		baggageclaimURL:   &atcWorker.BaggageclaimURL,
+		certsPath:         atcWorker.CertsPath,
+		httpProxyURL:      atcWorker.HTTPProxyURL,
+		httpsProxyURL:     atcWorker.HTTPSProxyURL,
+		noProxy:           atcWorker.NoProxy,
+		activeVolumes:     atcWorker.ActiveVolumes,
+		resourceTypes:     atcWorker.ResourceTypes,
+		allocatableMemory: atcWorker.AllocatableMemory,
+		platform:          atcWorker.Platform,
+		tags:              atcWorker.Tags,
+		teamName:          atcWorker.Team,
+		teamID:            workerTeamID,
+		startTime:         time.Unix(atcWorker.StartTime, 0),
+		ephemeral:         atcWorker.Ephemeral,
+		conn:              conn,
 	}
 
 	workerBaseResourceTypeIDs := []int{}

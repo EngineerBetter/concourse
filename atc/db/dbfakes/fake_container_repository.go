@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
 )
 
@@ -75,18 +76,18 @@ type FakeContainerRepository struct {
 	getActiveContainerCountReturnsOnCall map[int]struct {
 		result1 int
 	}
-	GetActiveContainerResourcesStub        func(string) (int, int)
-	getActiveContainerResourcesMutex       sync.RWMutex
-	getActiveContainerResourcesArgsForCall []struct {
+	GetActiveContainerMemoryAllocationStub        func(string) (atc.MemoryLimit, error)
+	getActiveContainerMemoryAllocationMutex       sync.RWMutex
+	getActiveContainerMemoryAllocationArgsForCall []struct {
 		arg1 string
 	}
-	getActiveContainerResourcesReturns struct {
-		result1 int
-		result2 int
+	getActiveContainerMemoryAllocationReturns struct {
+		result1 atc.MemoryLimit
+		result2 error
 	}
-	getActiveContainerResourcesReturnsOnCall map[int]struct {
-		result1 int
-		result2 int
+	getActiveContainerMemoryAllocationReturnsOnCall map[int]struct {
+		result1 atc.MemoryLimit
+		result2 error
 	}
 	RemoveDestroyingContainersStub        func(string, []string) (int, error)
 	removeDestroyingContainersMutex       sync.RWMutex
@@ -439,66 +440,66 @@ func (fake *FakeContainerRepository) GetActiveContainerCountReturnsOnCall(i int,
 	}{result1}
 }
 
-func (fake *FakeContainerRepository) GetActiveContainerResources(arg1 string) (int, int) {
-	fake.getActiveContainerResourcesMutex.Lock()
-	ret, specificReturn := fake.getActiveContainerResourcesReturnsOnCall[len(fake.getActiveContainerResourcesArgsForCall)]
-	fake.getActiveContainerResourcesArgsForCall = append(fake.getActiveContainerResourcesArgsForCall, struct {
+func (fake *FakeContainerRepository) GetActiveContainerMemoryAllocation(arg1 string) (atc.MemoryLimit, error) {
+	fake.getActiveContainerMemoryAllocationMutex.Lock()
+	ret, specificReturn := fake.getActiveContainerMemoryAllocationReturnsOnCall[len(fake.getActiveContainerMemoryAllocationArgsForCall)]
+	fake.getActiveContainerMemoryAllocationArgsForCall = append(fake.getActiveContainerMemoryAllocationArgsForCall, struct {
 		arg1 string
 	}{arg1})
-	fake.recordInvocation("GetActiveContainerResources", []interface{}{arg1})
-	fake.getActiveContainerResourcesMutex.Unlock()
-	if fake.GetActiveContainerResourcesStub != nil {
-		return fake.GetActiveContainerResourcesStub(arg1)
+	fake.recordInvocation("GetActiveContainerMemoryAllocation", []interface{}{arg1})
+	fake.getActiveContainerMemoryAllocationMutex.Unlock()
+	if fake.GetActiveContainerMemoryAllocationStub != nil {
+		return fake.GetActiveContainerMemoryAllocationStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getActiveContainerResourcesReturns
+	fakeReturns := fake.getActiveContainerMemoryAllocationReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
-func (fake *FakeContainerRepository) GetActiveContainerResourcesCallCount() int {
-	fake.getActiveContainerResourcesMutex.RLock()
-	defer fake.getActiveContainerResourcesMutex.RUnlock()
-	return len(fake.getActiveContainerResourcesArgsForCall)
+func (fake *FakeContainerRepository) GetActiveContainerMemoryAllocationCallCount() int {
+	fake.getActiveContainerMemoryAllocationMutex.RLock()
+	defer fake.getActiveContainerMemoryAllocationMutex.RUnlock()
+	return len(fake.getActiveContainerMemoryAllocationArgsForCall)
 }
 
-func (fake *FakeContainerRepository) GetActiveContainerResourcesCalls(stub func(string) (int, int)) {
-	fake.getActiveContainerResourcesMutex.Lock()
-	defer fake.getActiveContainerResourcesMutex.Unlock()
-	fake.GetActiveContainerResourcesStub = stub
+func (fake *FakeContainerRepository) GetActiveContainerMemoryAllocationCalls(stub func(string) (atc.MemoryLimit, error)) {
+	fake.getActiveContainerMemoryAllocationMutex.Lock()
+	defer fake.getActiveContainerMemoryAllocationMutex.Unlock()
+	fake.GetActiveContainerMemoryAllocationStub = stub
 }
 
-func (fake *FakeContainerRepository) GetActiveContainerResourcesArgsForCall(i int) string {
-	fake.getActiveContainerResourcesMutex.RLock()
-	defer fake.getActiveContainerResourcesMutex.RUnlock()
-	argsForCall := fake.getActiveContainerResourcesArgsForCall[i]
+func (fake *FakeContainerRepository) GetActiveContainerMemoryAllocationArgsForCall(i int) string {
+	fake.getActiveContainerMemoryAllocationMutex.RLock()
+	defer fake.getActiveContainerMemoryAllocationMutex.RUnlock()
+	argsForCall := fake.getActiveContainerMemoryAllocationArgsForCall[i]
 	return argsForCall.arg1
 }
 
-func (fake *FakeContainerRepository) GetActiveContainerResourcesReturns(result1 int, result2 int) {
-	fake.getActiveContainerResourcesMutex.Lock()
-	defer fake.getActiveContainerResourcesMutex.Unlock()
-	fake.GetActiveContainerResourcesStub = nil
-	fake.getActiveContainerResourcesReturns = struct {
-		result1 int
-		result2 int
+func (fake *FakeContainerRepository) GetActiveContainerMemoryAllocationReturns(result1 atc.MemoryLimit, result2 error) {
+	fake.getActiveContainerMemoryAllocationMutex.Lock()
+	defer fake.getActiveContainerMemoryAllocationMutex.Unlock()
+	fake.GetActiveContainerMemoryAllocationStub = nil
+	fake.getActiveContainerMemoryAllocationReturns = struct {
+		result1 atc.MemoryLimit
+		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeContainerRepository) GetActiveContainerResourcesReturnsOnCall(i int, result1 int, result2 int) {
-	fake.getActiveContainerResourcesMutex.Lock()
-	defer fake.getActiveContainerResourcesMutex.Unlock()
-	fake.GetActiveContainerResourcesStub = nil
-	if fake.getActiveContainerResourcesReturnsOnCall == nil {
-		fake.getActiveContainerResourcesReturnsOnCall = make(map[int]struct {
-			result1 int
-			result2 int
+func (fake *FakeContainerRepository) GetActiveContainerMemoryAllocationReturnsOnCall(i int, result1 atc.MemoryLimit, result2 error) {
+	fake.getActiveContainerMemoryAllocationMutex.Lock()
+	defer fake.getActiveContainerMemoryAllocationMutex.Unlock()
+	fake.GetActiveContainerMemoryAllocationStub = nil
+	if fake.getActiveContainerMemoryAllocationReturnsOnCall == nil {
+		fake.getActiveContainerMemoryAllocationReturnsOnCall = make(map[int]struct {
+			result1 atc.MemoryLimit
+			result2 error
 		})
 	}
-	fake.getActiveContainerResourcesReturnsOnCall[i] = struct {
-		result1 int
-		result2 int
+	fake.getActiveContainerMemoryAllocationReturnsOnCall[i] = struct {
+		result1 atc.MemoryLimit
+		result2 error
 	}{result1, result2}
 }
 
@@ -713,8 +714,8 @@ func (fake *FakeContainerRepository) Invocations() map[string][][]interface{} {
 	defer fake.findOrphanedContainersMutex.RUnlock()
 	fake.getActiveContainerCountMutex.RLock()
 	defer fake.getActiveContainerCountMutex.RUnlock()
-	fake.getActiveContainerResourcesMutex.RLock()
-	defer fake.getActiveContainerResourcesMutex.RUnlock()
+	fake.getActiveContainerMemoryAllocationMutex.RLock()
+	defer fake.getActiveContainerMemoryAllocationMutex.RUnlock()
 	fake.removeDestroyingContainersMutex.RLock()
 	defer fake.removeDestroyingContainersMutex.RUnlock()
 	fake.removeMissingContainersMutex.RLock()

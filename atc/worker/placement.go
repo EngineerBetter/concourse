@@ -8,18 +8,17 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
 
 type ContainerPlacementStrategyOptions struct {
-	ContainerPlacementStrategy   []string `long:"container-placement-strategy" default:"volume-locality" choice:"volume-locality" choice:"random" choice:"fewest-build-containers" choice:"limit-active-tasks" choice:"limit-active-containers" choice:"limit-active-volumes" choice:"limit-total-resources" description:"Method by which a worker is selected during container placement. If multiple methods are specified, they will be applied in order. Random strategy should only be used alone."`
+	ContainerPlacementStrategy   []string `long:"container-placement-strategy" default:"volume-locality" choice:"volume-locality" choice:"random" choice:"fewest-build-containers" choice:"limit-active-tasks" choice:"limit-active-containers" choice:"limit-active-volumes" choice:"limit-total-allocated-memory" description:"Method by which a worker is selected during container placement. If multiple methods are specified, they will be applied in order. Random strategy should only be used alone."`
 	MaxActiveTasksPerWorker      int      `long:"max-active-tasks-per-worker" default:"0" description:"Maximum allowed number of active build tasks per worker. Has effect only when used with limit-active-tasks placement strategy. 0 means no limit."`
 	MaxActiveContainersPerWorker int      `long:"max-active-containers-per-worker" default:"0" description:"Maximum allowed number of active containers per worker. Has effect only when used with limit-active-containers placement strategy. 0 means no limit."`
 	MaxActiveVolumesPerWorker    int      `long:"max-active-volumes-per-worker" default:"0" description:"Maximum allowed number of active volumes per worker. Has effect only when used with limit-active-volumes placement strategy. 0 means no limit."`
-	DefaultCPUPerWorker          int      `long:"default-cpu-per-worker" description:"Default number of CPU shares to allocate. Has effect only when used with limit-total-resources placement strategy."`
-	DefaultMemoryPerWorker       int      `long:"default-memory-per-worker" description:"Default number of memory available to the worker in bytes. Has effect only when used with limit-total-resources placement strategy."`
 }
 
 type NoWorkerFitContainerPlacementStrategyError struct {
@@ -77,14 +76,8 @@ func NewContainerPlacementStrategy(opts ContainerPlacementStrategyOptions, conta
 				return nil, errors.New("max-active-volumes-per-worker must be greater or equal than 0")
 			}
 			cps.nodes = append(cps.nodes, newLimitActiveVolumesPlacementStrategy(strategy, opts.MaxActiveVolumesPerWorker))
-		case "limit-total-resources":
-			if opts.DefaultCPUPerWorker <= 0 {
-				return nil, errors.New("default-cpu-per-worker must be greater than 0")
-			}
-			if opts.DefaultMemoryPerWorker <= 0 {
-				return nil, errors.New("default-memory-per-worker must be greater than 0")
-			}
-			cps.nodes = append(cps.nodes, newLimitTotalResourcesPlacementStrategy(containerRepository, opts.DefaultCPUPerWorker, opts.DefaultMemoryPerWorker))
+		case "limit-total-allocated-memory":
+			cps.nodes = append(cps.nodes, newLimitTotalAllocatedMemoryPlacementStrategy(containerRepository))
 		case "volume-locality":
 			cps.nodes = append(cps.nodes, newVolumeLocalityPlacementStrategyNode(strategy))
 		default:
@@ -312,52 +305,40 @@ func (strategy *LimitActiveVolumesPlacementStrategyNode) StrategyName() string {
 	return strategy.GivenName
 }
 
-type LimitTotalResourcesPlacementStrategy struct {
-	containerRepository      db.ContainerRepository
-	defaultAllocatableCPU    int
-	defaultAllocatableMemory int
+type LimitTotalAllocatedMemoryPlacementStrategy struct {
+	containerRepository db.ContainerRepository
 }
 
-func newLimitTotalResourcesPlacementStrategy(containerRepository db.ContainerRepository, defaultAllocatableCPU, defaultAllocatableMemory int) ContainerPlacementStrategyChainNode {
-	return &LimitTotalResourcesPlacementStrategy{
-		containerRepository:      containerRepository,
-		defaultAllocatableCPU:    defaultAllocatableCPU,
-		defaultAllocatableMemory: defaultAllocatableMemory,
+func newLimitTotalAllocatedMemoryPlacementStrategy(containerRepository db.ContainerRepository) ContainerPlacementStrategyChainNode {
+	return &LimitTotalAllocatedMemoryPlacementStrategy{
+		containerRepository: containerRepository,
 	}
 }
 
-func (strategy *LimitTotalResourcesPlacementStrategy) Choose(logger lager.Logger, workers []Worker, spec ContainerSpec) ([]Worker, error) {
+func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) Choose(logger lager.Logger, workers []Worker, spec ContainerSpec) ([]Worker, error) {
 	candidates := []Worker{}
-	requestedCPU := 0
-	requestedMemory := 0
-	if spec.Limits.CPU != nil {
-		requestedCPU = int(*spec.Limits.CPU)
-	}
+	requestedMemory := atc.MemoryLimit(0)
 	if spec.Limits.Memory != nil {
-		requestedMemory = int(*spec.Limits.Memory)
+		requestedMemory = atc.MemoryLimit(*spec.Limits.Memory)
 	}
 
 	for _, w := range workers {
-		allocatedCPU, allocatedMemory := strategy.containerRepository.GetActiveContainerResources(w.Name())
+		if w.AllocatableMemory() == nil {
+			candidates = append(candidates, w)
+			continue
+		}
+
+		allocatedMemory, err := strategy.containerRepository.GetActiveContainerMemoryAllocation(w.Name())
+		if err != nil {
+			return nil, err
+		}
 		logger.Debug("container-requested-resources-from-worker", lager.Data{
 			"worker":           w.Name(),
-			"requested_cpu":    requestedCPU,
 			"requested_memory": requestedMemory,
-			"allocated_cpu":    allocatedCPU,
 			"allocated_memory": allocatedMemory,
 		})
 
-		allocatableCPU := strategy.defaultAllocatableCPU
-		if w.AllocatableResources().CPU != nil {
-			allocatableCPU = int(*w.AllocatableResources().CPU)
-		}
-
-		allocatableMemory := strategy.defaultAllocatableMemory
-		if w.AllocatableResources().Memory != nil {
-			allocatableMemory = int(*w.AllocatableResources().Memory)
-		}
-
-		if (allocatedCPU+requestedCPU) < allocatableCPU && (allocatedMemory+requestedMemory) < allocatableMemory {
+		if (allocatedMemory + requestedMemory) < *w.AllocatableMemory() {
 			candidates = append(candidates, w)
 		}
 	}
@@ -365,16 +346,16 @@ func (strategy *LimitTotalResourcesPlacementStrategy) Choose(logger lager.Logger
 	if len(candidates) == 0 {
 		return nil, NoWorkerFitContainerPlacementStrategyError{
 			Strategy: strategy.StrategyName(),
-			Reason:   message.NewPrinter(language.English).Sprintf("task requested %d CPU shares and %d bytes of memory and no workers had enough available resources", requestedCPU, requestedMemory),
+			Reason:   message.NewPrinter(language.English).Sprintf("task requested %d bytes of memory and no workers had enough available memory", requestedMemory),
 		}
 	}
 	return candidates, nil
 }
 
-func (strategy *LimitTotalResourcesPlacementStrategy) ModifiesActiveTasks() bool {
+func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) ModifiesActiveTasks() bool {
 	return false
 }
 
-func (strategy *LimitTotalResourcesPlacementStrategy) StrategyName() string {
-	return "limit-total-resources"
+func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) StrategyName() string {
+	return "limit-total-allocated-memory"
 }
