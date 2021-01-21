@@ -224,7 +224,7 @@ func scanWorker(worker *worker, row scannable) error {
 		return err
 	}
 
-	worker.allocatableResources = &atc.ContainerLimits{}
+	worker.allocatableResources = atc.ContainerLimits{}
 	if allocatableCPU.Valid {
 		cpu := atc.CPULimit(allocatableCPU.Int64)
 		worker.allocatableResources.CPU = &cpu
@@ -519,7 +519,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		noProxy:              atcWorker.NoProxy,
 		activeVolumes:        atcWorker.ActiveVolumes,
 		resourceTypes:        atcWorker.ResourceTypes,
-		allocatableResources: &atcWorker.AllocatableResources,
+		allocatableResources: atcWorker.AllocatableResources,
 		platform:             atcWorker.Platform,
 		tags:                 atcWorker.Tags,
 		teamName:             atcWorker.Team,

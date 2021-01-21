@@ -49,6 +49,16 @@ type FakeWorker struct {
 	activeVolumesReturnsOnCall map[int]struct {
 		result1 int
 	}
+	AllocatableResourcesStub        func() atc.ContainerLimits
+	allocatableResourcesMutex       sync.RWMutex
+	allocatableResourcesArgsForCall []struct {
+	}
+	allocatableResourcesReturns struct {
+		result1 atc.ContainerLimits
+	}
+	allocatableResourcesReturnsOnCall map[int]struct {
+		result1 atc.ContainerLimits
+	}
 	BuildContainersStub        func() int
 	buildContainersMutex       sync.RWMutex
 	buildContainersArgsForCall []struct {
@@ -498,6 +508,58 @@ func (fake *FakeWorker) ActiveVolumesReturnsOnCall(i int, result1 int) {
 	}
 	fake.activeVolumesReturnsOnCall[i] = struct {
 		result1 int
+	}{result1}
+}
+
+func (fake *FakeWorker) AllocatableResources() atc.ContainerLimits {
+	fake.allocatableResourcesMutex.Lock()
+	ret, specificReturn := fake.allocatableResourcesReturnsOnCall[len(fake.allocatableResourcesArgsForCall)]
+	fake.allocatableResourcesArgsForCall = append(fake.allocatableResourcesArgsForCall, struct {
+	}{})
+	fake.recordInvocation("AllocatableResources", []interface{}{})
+	fake.allocatableResourcesMutex.Unlock()
+	if fake.AllocatableResourcesStub != nil {
+		return fake.AllocatableResourcesStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.allocatableResourcesReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeWorker) AllocatableResourcesCallCount() int {
+	fake.allocatableResourcesMutex.RLock()
+	defer fake.allocatableResourcesMutex.RUnlock()
+	return len(fake.allocatableResourcesArgsForCall)
+}
+
+func (fake *FakeWorker) AllocatableResourcesCalls(stub func() atc.ContainerLimits) {
+	fake.allocatableResourcesMutex.Lock()
+	defer fake.allocatableResourcesMutex.Unlock()
+	fake.AllocatableResourcesStub = stub
+}
+
+func (fake *FakeWorker) AllocatableResourcesReturns(result1 atc.ContainerLimits) {
+	fake.allocatableResourcesMutex.Lock()
+	defer fake.allocatableResourcesMutex.Unlock()
+	fake.AllocatableResourcesStub = nil
+	fake.allocatableResourcesReturns = struct {
+		result1 atc.ContainerLimits
+	}{result1}
+}
+
+func (fake *FakeWorker) AllocatableResourcesReturnsOnCall(i int, result1 atc.ContainerLimits) {
+	fake.allocatableResourcesMutex.Lock()
+	defer fake.allocatableResourcesMutex.Unlock()
+	fake.AllocatableResourcesStub = nil
+	if fake.allocatableResourcesReturnsOnCall == nil {
+		fake.allocatableResourcesReturnsOnCall = make(map[int]struct {
+			result1 atc.ContainerLimits
+		})
+	}
+	fake.allocatableResourcesReturnsOnCall[i] = struct {
+		result1 atc.ContainerLimits
 	}{result1}
 }
 
@@ -1816,6 +1878,8 @@ func (fake *FakeWorker) Invocations() map[string][][]interface{} {
 	defer fake.activeTasksMutex.RUnlock()
 	fake.activeVolumesMutex.RLock()
 	defer fake.activeVolumesMutex.RUnlock()
+	fake.allocatableResourcesMutex.RLock()
+	defer fake.allocatableResourcesMutex.RUnlock()
 	fake.buildContainersMutex.RLock()
 	defer fake.buildContainersMutex.RUnlock()
 	fake.certsVolumeMutex.RLock()

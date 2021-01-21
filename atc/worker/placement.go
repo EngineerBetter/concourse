@@ -9,6 +9,8 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/concourse/atc/db"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 type ContainerPlacementStrategyOptions struct {
@@ -22,10 +24,16 @@ type ContainerPlacementStrategyOptions struct {
 
 type NoWorkerFitContainerPlacementStrategyError struct {
 	Strategy string
+	Reason   string
 }
 
 func (err NoWorkerFitContainerPlacementStrategyError) Error() string {
-	return fmt.Sprintf("no worker fit container placement strategy: %s", err.Strategy)
+	message := strings.Builder{}
+	message.WriteString(fmt.Sprintf("no worker fit container placement strategy: %s", err.Strategy))
+	if err.Reason != "" {
+		message.WriteString(fmt.Sprintf(", reason: %s", err.Reason))
+	}
+	return message.String()
 }
 
 type ContainerPlacementStrategy interface {
@@ -71,10 +79,10 @@ func NewContainerPlacementStrategy(opts ContainerPlacementStrategyOptions, conta
 			cps.nodes = append(cps.nodes, newLimitActiveVolumesPlacementStrategy(strategy, opts.MaxActiveVolumesPerWorker))
 		case "limit-total-resources":
 			if opts.DefaultCPUPerWorker <= 0 {
-				return nil, errors.New("max-cpu-per-worker must be greater than 0")
+				return nil, errors.New("default-cpu-per-worker must be greater than 0")
 			}
 			if opts.DefaultMemoryPerWorker <= 0 {
-				return nil, errors.New("max-memory-per-worker must be greater than 0")
+				return nil, errors.New("default-memory-per-worker must be greater than 0")
 			}
 			cps.nodes = append(cps.nodes, newLimitTotalResourcesPlacementStrategy(containerRepository, opts.DefaultCPUPerWorker, opts.DefaultMemoryPerWorker))
 		case "volume-locality":
@@ -354,6 +362,12 @@ func (strategy *LimitTotalResourcesPlacementStrategy) Choose(logger lager.Logger
 		}
 	}
 
+	if len(candidates) == 0 {
+		return nil, NoWorkerFitContainerPlacementStrategyError{
+			Strategy: strategy.StrategyName(),
+			Reason:   message.NewPrinter(language.English).Sprintf("task requested %d CPU shares and %d bytes of memory and no workers had enough available resources", requestedCPU, requestedMemory),
+		}
+	}
 	return candidates, nil
 }
 

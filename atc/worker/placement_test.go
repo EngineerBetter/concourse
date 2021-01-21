@@ -605,18 +605,19 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 	Describe("Choose", func() {
 		var compatibleWorker1 *workerfakes.FakeWorker
 		var compatibleWorker2 *workerfakes.FakeWorker
-		var workerCPU1 int
-		var workerCPU2 int
-		var workerMemory1 int
-		var workerMemory2 int
-		var cpu uint64
-		var memory uint64
-		var maxCPU int
-		var maxMemory int
+		var worker1UsedCPU int
+		var worker2UsedCPU int
+		var worker1UsedMemory int
+		var worker2UsedMemory int
+		var requestedCPU uint64
+		var requestedMemory uint64
+		var allocatableCPU int
+		var allocatableMemory int
 		var containerRepository *dbfakes.FakeContainerRepository
 
 		BeforeEach(func() {
 			logger = lagertest.NewTestLogger("build-containers-total-resources-test")
+
 			compatibleWorker1 = new(workerfakes.FakeWorker)
 			compatibleWorker1.NameReturns("compatibleWorker1")
 			compatibleWorker2 = new(workerfakes.FakeWorker)
@@ -626,9 +627,9 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 			containerRepository.GetActiveContainerResourcesStub = func(worker string) (int, int) {
 				switch worker {
 				case "compatibleWorker1":
-					return workerCPU1, workerMemory1
+					return worker1UsedCPU, worker1UsedMemory
 				case "compatibleWorker2":
-					return workerCPU2, workerMemory2
+					return worker2UsedCPU, worker2UsedMemory
 				default:
 					return 0, 0
 				}
@@ -639,8 +640,8 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 		JustBeforeEach(func() {
 			strategy, newStrategyError = NewContainerPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{"limit-total-resources"},
-				MaxCPUPerWorker:            maxCPU,
-				MaxMemoryPerWorker:         maxMemory,
+				DefaultCPUPerWorker:        allocatableCPU,
+				DefaultMemoryPerWorker:     allocatableMemory,
 			}, containerRepository,
 			)
 			Expect(newStrategyError).ToNot(HaveOccurred())
@@ -650,18 +651,39 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 				TeamID:    4567,
 				Inputs:    []InputSource{},
 				Limits: ContainerLimits{
-					CPU:    &cpu,
-					Memory: &memory,
+					CPU:    &requestedCPU,
+					Memory: &requestedMemory,
 				},
 			}
 		})
 
 		Context("when the CPU and memory are both below the max limit", func() {
 			BeforeEach(func() {
-				workerCPU1, workerMemory1 = 0, 0
-				workerCPU2, workerMemory2 = 0, 0
-				maxCPU, maxMemory = 100, 2000
-				cpu, memory = 50, 1500
+				worker1UsedCPU, worker1UsedMemory = 0, 0
+				worker2UsedCPU, worker2UsedMemory = 0, 0
+				allocatableCPU, allocatableMemory = 100, 2000
+				requestedCPU, requestedMemory = 50, 1500
+			})
+
+			It("return all workers", func() {
+				Consistently(func() Worker {
+					chosenWorker, chooseErr = strategy.Choose(
+						logger,
+						workers,
+						spec,
+					)
+					Expect(chooseErr).ToNot(HaveOccurred())
+					return chosenWorker
+				}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2)))
+			})
+		})
+
+		Context("when only CPU is provided", func() {
+			BeforeEach(func() {
+				worker1UsedCPU, worker1UsedMemory = 0, 0
+				worker2UsedCPU, worker2UsedMemory = 0, 0
+				allocatableCPU, allocatableMemory = 100, 2000
+				requestedCPU = 50
 			})
 
 			It("return all workers", func() {
@@ -679,10 +701,10 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 
 		Context("when the CPU is above the max limit", func() {
 			BeforeEach(func() {
-				workerCPU1, workerMemory1 = 75, 1000
-				workerCPU2, workerMemory2 = 0, 0
-				maxCPU, maxMemory = 100, 2000
-				cpu, memory = 50, 500
+				worker1UsedCPU, worker1UsedMemory = 75, 1000
+				worker2UsedCPU, worker2UsedMemory = 0, 0
+				allocatableCPU, allocatableMemory = 100, 2000
+				requestedCPU, requestedMemory = 50, 500
 			})
 
 			It("return only workers with enough available CPU", func() {
@@ -700,10 +722,10 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 
 		Context("when the memory is above the max limit", func() {
 			BeforeEach(func() {
-				workerCPU1, workerMemory1 = 0, 1500
-				workerCPU2, workerMemory2 = 0, 0
-				maxCPU, maxMemory = 100, 2000
-				cpu, memory = 50, 1000
+				worker1UsedCPU, worker1UsedMemory = 0, 1500
+				worker2UsedCPU, worker2UsedMemory = 0, 0
+				allocatableCPU, allocatableMemory = 100, 2000
+				requestedCPU, requestedMemory = 50, 1000
 			})
 
 			It("return only workers with enough available memory", func() {
@@ -721,10 +743,10 @@ var _ = Describe("LimitTotalResourcesPlacementStrategy", func() {
 
 		Context("when both the memory and CPU are above the max limit", func() {
 			BeforeEach(func() {
-				workerCPU1, workerMemory1 = 75, 1500
-				workerCPU2, workerMemory2 = 0, 0
-				maxCPU, maxMemory = 100, 2000
-				cpu, memory = 50, 1000
+				worker1UsedCPU, worker1UsedMemory = 75, 1500
+				worker2UsedCPU, worker2UsedMemory = 0, 0
+				allocatableCPU, allocatableMemory = 100, 2000
+				requestedCPU, requestedMemory = 50, 1000
 			})
 
 			It("return only workers with enough available CPU and memory", func() {
