@@ -11,6 +11,7 @@ import (
 	"code.cloudfoundry.org/lager/lagerctx"
 
 	"github.com/concourse/concourse/atc/db"
+	"github.com/concourse/concourse/atc/policy"
 )
 
 var (
@@ -24,6 +25,14 @@ type NoCompatibleWorkersError struct {
 
 func (err NoCompatibleWorkersError) Error() string {
 	return fmt.Sprintf("no workers satisfying: %s", err.Spec.Description())
+}
+
+type NoValidWorkersError struct {
+	Reasons []string
+}
+
+func (err NoValidWorkersError) Error() string {
+	return fmt.Sprintf("no workers passed policy check: %s", err.Reasons)
 }
 
 //go:generate counterfeiter . Pool
@@ -51,14 +60,19 @@ type VolumeFinder interface {
 }
 
 type pool struct {
-	provider WorkerProvider
-	rand     *rand.Rand
+	provider      WorkerProvider
+	rand          *rand.Rand
+	policyChecker policy.Checker
 }
 
-func NewPool(provider WorkerProvider) Pool {
+func NewPool(
+	provider WorkerProvider,
+	policyChecker policy.Checker,
+) Pool {
 	return &pool{
-		provider: provider,
-		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
+		provider:      provider,
+		rand:          rand.New(rand.NewSource(time.Now().UnixNano())),
+		policyChecker: policyChecker,
 	}
 }
 
@@ -190,24 +204,66 @@ func (pool *pool) SelectWorker(
 		return nil, err
 	}
 
-	var worker Worker
-dance:
 	for _, w := range workersWithContainer {
 		for _, c := range compatibleWorkers {
 			if w.Name() == c.Name() {
-				worker = c
-				break dance
+				return NewClient(c), nil
 			}
 		}
 	}
 
-	if worker == nil {
-		worker, err = strategy.Choose(logger, compatibleWorkers, containerSpec)
+	if !pool.policyChecker.ShouldCheckAction(policy.ActionSelectWorker) {
+		selectedWorker, err := strategy.Choose(logger, compatibleWorkers, containerSpec)
 		if err != nil {
 			return nil, err
 		}
+		return NewClient(selectedWorker), nil
 	}
-	return NewClient(worker), nil
+
+	allowedWorkers := map[string]Worker{}
+	for _, worker := range compatibleWorkers {
+		allowedWorkers[worker.Name()] = worker
+	}
+
+	// Choose a worker and check with policy server if that worker is allowed
+	// If not, remove it from the list of allowed workers and choose another
+	// Go until a valid one is found or the list of allowed workers is empty
+	reasons := []string{}
+	for len(allowedWorkers) > 0 {
+		allowedWorkerSlice := []Worker{}
+		for _, val := range allowedWorkers {
+			allowedWorkerSlice = append(allowedWorkerSlice, val)
+		}
+		selectedWorker, err := strategy.Choose(logger, allowedWorkerSlice, containerSpec)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: include Job
+		team, _ := ctx.Value("team").(string)
+		pipeline, _ := ctx.Value("pipeline").(string)
+		checkInput := policy.PolicyCheckInput{
+			Action:   policy.ActionSelectWorker,
+			Team:     team,
+			Pipeline: pipeline,
+			Data:     workerPolicyCheckData(selectedWorker, workerSpec, containerSpec),
+		}
+		result, err := pool.policyChecker.Check(checkInput)
+		if err != nil {
+			return nil, err
+		}
+
+		if err == nil && result.Allowed {
+			return NewClient(selectedWorker), nil
+		}
+
+		reasons = append(reasons, result.Reasons...)
+		delete(allowedWorkers, selectedWorker.Name())
+	}
+
+	return nil, NoValidWorkersError{
+		Reasons: reasons,
+	}
 }
 
 func (pool *pool) chooseRandomWorkerForVolume(
@@ -220,4 +276,22 @@ func (pool *pool) chooseRandomWorkerForVolume(
 	}
 
 	return workers[rand.Intn(len(workers))], nil
+}
+
+func workerPolicyCheckData(worker Worker, workerSpec WorkerSpec, containerSpec ContainerSpec) map[string]interface{} {
+	activeTasks, _ := worker.ActiveTasks()
+	return map[string]interface{}{
+		"selected_worker": map[string]interface{}{
+			"name":             worker.Name(),
+			"description":      worker.Description(),
+			"build_containers": worker.BuildContainers(),
+			"tags":             worker.Tags(),
+			"uptime":           worker.Uptime(),
+			"is_owned_by_team": worker.IsOwnedByTeam(),
+			"ephemeral":        worker.Ephemeral(),
+			"active_tasks":     activeTasks,
+		},
+		"worker_spec":    workerSpec,
+		"container_spec": containerSpec,
+	}
 }

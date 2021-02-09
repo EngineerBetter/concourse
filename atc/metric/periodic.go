@@ -173,6 +173,20 @@ func tick(logger lager.Logger, m *Monitor) {
 		)
 	}
 
+	for labels, counter := range m.RetriedErrors {
+		m.emit(
+			logger.Session("retried-errors"),
+			Event{
+				Name:  "retried errors",
+				Value: counter.Delta(),
+				Attributes: map[string]string{
+					"error_type": string(labels.RetryableError),
+					"team":       labels.TeamName,
+				},
+			},
+		)
+	}
+
 	for labels, gauge := range m.TasksWaiting {
 		m.emit(
 			logger.Session("tasks-waiting"),

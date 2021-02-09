@@ -1,5 +1,4 @@
 version: '3'
-
 services:
   db:
     image: postgres:${POSTGRES_TAG:-latest}
@@ -10,7 +9,6 @@ services:
       POSTGRES_DB: concourse
       POSTGRES_USER: dev
       POSTGRES_PASSWORD: dev
-
   web:
     build: .
     image: concourse/concourse:local
@@ -32,8 +30,33 @@ services:
       CONCOURSE_CLUSTER_NAME: dev
       CONCOURSE_ENABLE_PIPELINE_INSTANCES: "true"
       CONCOURSE_ENABLE_ACROSS_STEP: "true"
-
+      CONCOURSE_ENABLE_RERUN_WHEN_WORKER_DISAPPEARS: "true"
+      CONCOURSE_CONTAINER_PLACEMENT_STRATEGY: limit-total-allocated-memory
   worker:
+    build: .
+    image: concourse/concourse:local
+    command: worker
+    privileged: true
+    depends_on: [web]
+    ports:
+    - 7877:7877
+    - 7888:7888
+    stop_signal: SIGUSR2
+    environment:
+      CONCOURSE_LOG_LEVEL: debug
+      CONCOURSE_TSA_HOST: web:2222
+      # avoid using loopbacks
+      CONCOURSE_BAGGAGECLAIM_DRIVER: overlay
+      # so we can reach Garden/Baggageclaim for debugging
+      CONCOURSE_BIND_IP: 0.0.0.0
+      CONCOURSE_BAGGAGECLAIM_BIND_IP: 0.0.0.0
+      CONCOURSE_BIND_PORT: 7877
+      CONCOURSE_BAGGAGECLAIM_BIND_PORT: 7888
+      CONCOURSE_GARDEN_DNS_PROXY_ENABLE: "true"
+      CONCOURSE_NAME: concourse-worker-main-0
+      CONCOURSE_ALLOCATABLE_MEMORY: 1000MB
+      CONCOURSE_EPHEMERAL: "true"
+  check-worker:
     build: .
     image: concourse/concourse:local
     command: worker
@@ -46,11 +69,12 @@ services:
     environment:
       CONCOURSE_LOG_LEVEL: debug
       CONCOURSE_TSA_HOST: web:2222
-
       # avoid using loopbacks
       CONCOURSE_BAGGAGECLAIM_DRIVER: overlay
-
       # so we can reach Garden/Baggageclaim for debugging
       CONCOURSE_BIND_IP: 0.0.0.0
       CONCOURSE_BAGGAGECLAIM_BIND_IP: 0.0.0.0
       CONCOURSE_GARDEN_DNS_PROXY_ENABLE: "true"
+      CONCOURSE_NAME: concourse-check-worker-main-0
+      CONCOURSE_ALLOCATABLE_MEMORY: 250MB
+      CONCOURSE_EPHEMERAL: "true"

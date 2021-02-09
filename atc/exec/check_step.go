@@ -280,6 +280,7 @@ func (step *CheckStep) runCheck(
 		},
 		TeamID: step.metadata.TeamID,
 		Env:    step.metadata.Env(),
+		Type:   step.containerMetadata.Type,
 	}
 	tracing.Inject(ctx, &containerSpec)
 

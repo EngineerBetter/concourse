@@ -17,6 +17,11 @@ type TasksWaitingLabels struct {
 	Platform   string
 }
 
+type RetriedErrorsLabels struct {
+	TeamName       string
+	RetryableError RetryableError
+}
+
 type TasksWaitingDuration struct {
 	Labels   TasksWaitingLabels
 	Duration time.Duration
