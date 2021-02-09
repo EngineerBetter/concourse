@@ -12,7 +12,7 @@ services:
       CONCOURSE_POLICY_CHECK_FILTER_HTTP_METHODS: PUT,POST
 
       # uncomment to configure
-      CONCOURSE_POLICY_CHECK_FILTER_ACTION: ListWorkers,ListContainers,UseImage,SaveConfig
+      CONCOURSE_POLICY_CHECK_FILTER_ACTION: ListWorkers,ListContainers,UseImage,SaveConfig,SelectWorker
       # CONCOURSE_POLICY_CHECK_FILTER_ACTION_SKIP: PausePipeline,UnpausePipeline
 
   opa:
