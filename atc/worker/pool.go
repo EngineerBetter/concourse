@@ -207,7 +207,7 @@ func (pool *pool) SelectWorker(
 	for _, w := range workersWithContainer {
 		for _, c := range compatibleWorkers {
 			if w.Name() == c.Name() {
-				return c, nil
+				return NewClient(c), nil
 			}
 		}
 	}
@@ -217,7 +217,7 @@ func (pool *pool) SelectWorker(
 		if err != nil {
 			return nil, err
 		}
-		return selectedWorker, nil
+		return NewClient(selectedWorker), nil
 	}
 
 	allowedWorkers := map[string]Worker{}
@@ -254,7 +254,7 @@ func (pool *pool) SelectWorker(
 		}
 
 		if err == nil && result.Allowed {
-			return selectedWorker, nil
+			return NewClient(selectedWorker), nil
 		}
 
 		reasons = append(reasons, result.Reasons...)
