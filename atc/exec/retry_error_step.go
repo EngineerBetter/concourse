@@ -76,6 +76,7 @@ func (step RetryErrorStep) Run(ctx context.Context, state RunState) (bool, error
 func (step RetryErrorStep) toRetry(logger lager.Logger, err error) (bool, metric.RetryableError) {
 	var urlError *url.Error
 	var netError net.Error
+	var placementError worker.NoWorkerFitContainerPlacementStrategyError
 	if errors.As(err, &transport.WorkerMissingError{}) || errors.As(err, &transport.WorkerUnreachableError{}) || errors.As(err, &urlError) {
 		logger.Debug("retry-error",
 			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err.Error()})
@@ -84,10 +85,16 @@ func (step RetryErrorStep) toRetry(logger lager.Logger, err error) (bool, metric
 		logger.Debug("retry-error",
 			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err})
 		return true, "worker_disappeared"
-	} else if errors.As(err, &worker.ErrNoWorkers) || errors.Is(err, &worker.NoValidWorkersError{}) {
+	} else if errors.Is(err, worker.ErrNoWorkers) || errors.As(err, &worker.NoValidWorkersError{}) {
 		logger.Debug("retry-error",
 			lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err})
 		return true, "no_workers"
+	} else if errors.As(err, &placementError) {
+		if placementError.Strategy == "limit-total-allocated-memory" {
+			logger.Debug("retry-error",
+				lager.Data{"err_type": reflect.TypeOf(err).String(), "err": err})
+			return true, "no_workers_with_memory"
+		}
 	}
 	return false, ""
 }
