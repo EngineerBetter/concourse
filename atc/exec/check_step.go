@@ -302,7 +302,7 @@ func (step *CheckStep) runCheck(
 
 	defer cancel()
 
-	chosenWorker, err := step.workerPool.SelectWorker(
+	chosenWorker, _, err := step.workerPool.WaitForWorker(
 		lagerctx.NewContext(processCtx, logger),
 		step.containerOwner(resourceConfig),
 		containerSpec,
