@@ -305,6 +305,8 @@ func (step *CheckStep) runCheck(
 	chosenWorker, _, err := step.workerPool.WaitForWorker(
 		lagerctx.NewContext(processCtx, logger),
 		step.containerOwner(resourceConfig),
+		step.metadata.TeamName,
+		step.metadata.PipelineName,
 		containerSpec,
 		workerSpec,
 		step.strategy,

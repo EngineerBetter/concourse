@@ -12,7 +12,7 @@ import (
 )
 
 type StepsWaitingLabels struct {
-	TeamId     string
+	Team       string
 	WorkerTags string
 	Platform   string
 }
@@ -35,7 +35,7 @@ func (event StepsWaitingDuration) Emit(logger lager.Logger) {
 			Name:  "steps waiting duration",
 			Value: event.Duration.Seconds(),
 			Attributes: map[string]string{
-				"teamId":     event.Labels.TeamId,
+				"team":       event.Labels.Team,
 				"workerTags": event.Labels.WorkerTags,
 				"platform":   event.Labels.Platform,
 			},

@@ -9,6 +9,7 @@ import (
 )
 
 const ActionUseImage = "UseImage"
+const ActionPickWorker = "PickWorker"
 
 type PolicyCheckNotPass struct {
 	Reasons []string

@@ -180,7 +180,7 @@ func tick(logger lager.Logger, m *Monitor) {
 				Name:  "steps waiting",
 				Value: gauge.Max(),
 				Attributes: map[string]string{
-					"teamId":     labels.TeamId,
+					"team":       labels.Team,
 					"workerTags": labels.WorkerTags,
 					"platform":   labels.Platform,
 				},

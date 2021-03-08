@@ -57,7 +57,7 @@ type GetDelegate interface {
 	Errored(lager.Logger, string)
 
 	WaitingForWorker(lager.Logger)
-	SelectedWorker(lager.Logger, worker.Client)
+	SelectedWorker(lager.Logger, worker.Worker)
 
 	UpdateVersion(lager.Logger, atc.GetPlan, runtime.VersionResult)
 }
@@ -218,6 +218,8 @@ func (step *GetStep) run(ctx context.Context, state RunState, delegate GetDelega
 	worker, _, err := step.workerPool.WaitForWorker(
 		lagerctx.NewContext(processCtx, logger),
 		containerOwner,
+		step.metadata.TeamName,
+		step.metadata.PipelineName,
 		containerSpec,
 		workerSpec,
 		step.strategy,

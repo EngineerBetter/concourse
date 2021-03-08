@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/db/lock"
 	"github.com/concourse/concourse/atc/metric"
+	"github.com/concourse/concourse/atc/policy"
 )
 
 const workerPollingInterval = 5 * time.Second
@@ -45,6 +45,8 @@ type Pool interface {
 	SelectWorker(
 		context.Context,
 		db.ContainerOwner,
+		string,
+		string,
 		ContainerSpec,
 		WorkerSpec,
 		ContainerPlacementStrategy,
@@ -54,6 +56,8 @@ type Pool interface {
 	WaitForWorker(
 		context.Context,
 		db.ContainerOwner,
+		string,
+		string,
 		ContainerSpec,
 		WorkerSpec,
 		ContainerPlacementStrategy,
@@ -75,16 +79,18 @@ type VolumeFinder interface {
 }
 
 type pool struct {
-	provider    WorkerProvider
-	lockFactory lock.LockFactory
+	provider      WorkerProvider
+	lockFactory   lock.LockFactory
+	policyChecker policy.Checker
 
 	rand *rand.Rand
 }
 
-func NewPool(provider WorkerProvider, lockFactory lock.LockFactory) Pool {
+func NewPool(provider WorkerProvider, lockFactory lock.LockFactory, policyChecker policy.Checker) Pool {
 	return &pool{
-		provider:    provider,
-		lockFactory: lockFactory,
+		provider:      provider,
+		lockFactory:   lockFactory,
+		policyChecker: policyChecker,
 
 		rand: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
@@ -199,6 +205,8 @@ func (pool *pool) ContainerInWorker(logger lager.Logger, owner db.ContainerOwner
 func (pool *pool) SelectWorker(
 	ctx context.Context,
 	owner db.ContainerOwner,
+	team string,
+	pipeline string,
 	containerSpec ContainerSpec,
 	workerSpec WorkerSpec,
 	strategy ContainerPlacementStrategy,
@@ -257,10 +265,16 @@ dance:
 
 			if err != nil {
 				logger.Error("Candidate worker rejected due to error", err)
-			} else {
-				worker = candidate
-				break
+				continue
 			}
+
+			err = pool.checkWorkerPolicy(candidate, containerSpec, team, pipeline)
+			if err != nil {
+				logger.Error("Candidate worker rejected due to policy check", err)
+				continue
+			}
+			worker = candidate
+			break
 		}
 
 		if worker == nil {
@@ -272,9 +286,52 @@ dance:
 	return NewClient(worker), nil
 }
 
+func (pool *pool) checkWorkerPolicy(worker Worker, containerSpec ContainerSpec, team, pipeline string) error {
+	if !pool.policyChecker.ShouldCheckAction(policy.ActionPickWorker) {
+		return nil
+	}
+
+	activeTasks, err := worker.ActiveTasks()
+	if err != nil {
+		return fmt.Errorf("perform check: %w", err)
+	}
+
+	result, err := pool.policyChecker.Check(policy.PolicyCheckInput{
+		Action:   policy.ActionPickWorker,
+		Team:     team,
+		Pipeline: pipeline,
+		Data: map[string]interface{}{
+			"worker": map[string]interface{}{
+				"name":             worker.Name(),
+				"description":      worker.Description(),
+				"build_containers": worker.BuildContainers(),
+				"tags":             worker.Tags(),
+				"uptime":           worker.Uptime(),
+				"is_owned_by_team": worker.IsOwnedByTeam(),
+				"ephemeral":        worker.Ephemeral(),
+				"active_tasks":     activeTasks,
+			},
+			"container_spec": containerSpec,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("perform check: %w", err)
+	}
+
+	if !result.Allowed {
+		return policy.PolicyCheckNotPass{
+			Reasons: result.Reasons,
+		}
+	}
+
+	return nil
+}
+
 func (pool *pool) WaitForWorker(
 	ctx context.Context,
 	owner db.ContainerOwner,
+	team string,
+	pipeline string,
 	containerSpec ContainerSpec,
 	workerSpec WorkerSpec,
 	strategy ContainerPlacementStrategy,
@@ -287,7 +344,7 @@ func (pool *pool) WaitForWorker(
 	defer pollingTicker.Stop()
 
 	labels := metric.StepsWaitingLabels{
-		TeamId:     strconv.Itoa(workerSpec.TeamID),
+		Team:       team,
 		WorkerTags: strings.Join(workerSpec.Tags, "_"),
 		Platform:   workerSpec.Platform,
 	}
@@ -296,7 +353,7 @@ func (pool *pool) WaitForWorker(
 	var waiting bool = false
 	for {
 		var err error
-		worker, err = pool.SelectWorker(ctx, owner, containerSpec, workerSpec, strategy, callbacks)
+		worker, err = pool.SelectWorker(ctx, owner, team, pipeline, containerSpec, workerSpec, strategy, callbacks)
 
 		if err != nil {
 			if errors.Is(err, ErrNoWorkers) {

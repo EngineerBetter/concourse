@@ -262,6 +262,8 @@ func (step *TaskStep) run(ctx context.Context, state RunState, delegate TaskDele
 	chosenWorker, _, err := step.workerPool.WaitForWorker(
 		lagerctx.NewContext(processCtx, logger),
 		owner,
+		step.metadata.TeamName,
+		step.metadata.PipelineName,
 		containerSpec,
 		step.workerSpec(config),
 		step.strategy,

@@ -27,6 +27,7 @@ type PrometheusEmitter struct {
 	concurrentRequestsLimitHit *prometheus.CounterVec
 	concurrentRequests         *prometheus.GaugeVec
 
+	stepsWaiting         *prometheus.GaugeVec
 	tasksWaiting         *prometheus.GaugeVec
 	tasksWaitingDuration *prometheus.HistogramVec
 
@@ -173,6 +174,14 @@ func (config *PrometheusConfig) NewEmitter() (metric.Emitter, error) {
 		Help:      "Number of concurrent requests being served by endpoints that have a specified limit of concurrent requests.",
 	}, []string{"action"})
 	prometheus.MustRegister(concurrentRequests)
+
+	stepsWaiting := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "concourse",
+		Subsystem: "steps",
+		Name:      "waiting",
+		Help:      "Number of Concourse steps currently waiting.",
+	}, []string{"team", "workerTags", "platform"})
+	prometheus.MustRegister(stepsWaiting)
 
 	tasksWaiting := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "concourse",
@@ -420,6 +429,7 @@ func (config *PrometheusConfig) NewEmitter() (metric.Emitter, error) {
 		concurrentRequestsLimitHit: concurrentRequestsLimitHit,
 		concurrentRequests:         concurrentRequests,
 
+		stepsWaiting:         stepsWaiting,
 		tasksWaiting:         tasksWaiting,
 		tasksWaitingDuration: tasksWaitingDuration,
 
@@ -490,6 +500,13 @@ func (emitter *PrometheusEmitter) Emit(logger lager.Logger, event metric.Event) 
 	case "concurrent requests":
 		emitter.concurrentRequests.
 			WithLabelValues(event.Attributes["action"]).Set(event.Value)
+	case "steps waiting":
+		emitter.stepsWaiting.
+			WithLabelValues(
+				event.Attributes["team"],
+				event.Attributes["workerTags"],
+				event.Attributes["platform"],
+			).Set(event.Value)
 	case "tasks waiting":
 		emitter.tasksWaiting.
 			WithLabelValues(
