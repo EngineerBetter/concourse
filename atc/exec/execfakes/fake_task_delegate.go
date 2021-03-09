@@ -15,10 +15,10 @@ import (
 )
 
 type FakeTaskDelegate struct {
-	DecreaseActiveTasksStub        func(worker.Client) error
+	DecreaseActiveTasksStub        func(worker.Worker) error
 	decreaseActiveTasksMutex       sync.RWMutex
 	decreaseActiveTasksArgsForCall []struct {
-		arg1 worker.Client
+		arg1 worker.Worker
 	}
 	decreaseActiveTasksReturns struct {
 		result1 error
@@ -56,10 +56,10 @@ type FakeTaskDelegate struct {
 		arg3 worker.ContainerPlacementStrategy
 		arg4 worker.Client
 	}
-	IncreaseActiveTasksStub        func(worker.Client) error
+	IncreaseActiveTasksStub        func(worker.Worker) error
 	increaseActiveTasksMutex       sync.RWMutex
 	increaseActiveTasksArgsForCall []struct {
-		arg1 worker.Client
+		arg1 worker.Worker
 	}
 	increaseActiveTasksReturns struct {
 		result1 error
@@ -72,11 +72,11 @@ type FakeTaskDelegate struct {
 	initializingArgsForCall []struct {
 		arg1 lager.Logger
 	}
-	SelectedWorkerStub        func(lager.Logger, string)
+	SelectedWorkerStub        func(lager.Logger, worker.Worker)
 	selectedWorkerMutex       sync.RWMutex
 	selectedWorkerArgsForCall []struct {
 		arg1 lager.Logger
-		arg2 string
+		arg2 worker.Worker
 	}
 	SetTaskConfigStub        func(atc.TaskConfig)
 	setTaskConfigMutex       sync.RWMutex
@@ -132,11 +132,11 @@ type FakeTaskDelegate struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeTaskDelegate) DecreaseActiveTasks(arg1 worker.Client) error {
+func (fake *FakeTaskDelegate) DecreaseActiveTasks(arg1 worker.Worker) error {
 	fake.decreaseActiveTasksMutex.Lock()
 	ret, specificReturn := fake.decreaseActiveTasksReturnsOnCall[len(fake.decreaseActiveTasksArgsForCall)]
 	fake.decreaseActiveTasksArgsForCall = append(fake.decreaseActiveTasksArgsForCall, struct {
-		arg1 worker.Client
+		arg1 worker.Worker
 	}{arg1})
 	stub := fake.DecreaseActiveTasksStub
 	fakeReturns := fake.decreaseActiveTasksReturns
@@ -157,13 +157,13 @@ func (fake *FakeTaskDelegate) DecreaseActiveTasksCallCount() int {
 	return len(fake.decreaseActiveTasksArgsForCall)
 }
 
-func (fake *FakeTaskDelegate) DecreaseActiveTasksCalls(stub func(worker.Client) error) {
+func (fake *FakeTaskDelegate) DecreaseActiveTasksCalls(stub func(worker.Worker) error) {
 	fake.decreaseActiveTasksMutex.Lock()
 	defer fake.decreaseActiveTasksMutex.Unlock()
 	fake.DecreaseActiveTasksStub = stub
 }
 
-func (fake *FakeTaskDelegate) DecreaseActiveTasksArgsForCall(i int) worker.Client {
+func (fake *FakeTaskDelegate) DecreaseActiveTasksArgsForCall(i int) worker.Worker {
 	fake.decreaseActiveTasksMutex.RLock()
 	defer fake.decreaseActiveTasksMutex.RUnlock()
 	argsForCall := fake.decreaseActiveTasksArgsForCall[i]
@@ -328,11 +328,11 @@ func (fake *FakeTaskDelegate) FinishedArgsForCall(i int) (lager.Logger, exec.Exi
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
-func (fake *FakeTaskDelegate) IncreaseActiveTasks(arg1 worker.Client) error {
+func (fake *FakeTaskDelegate) IncreaseActiveTasks(arg1 worker.Worker) error {
 	fake.increaseActiveTasksMutex.Lock()
 	ret, specificReturn := fake.increaseActiveTasksReturnsOnCall[len(fake.increaseActiveTasksArgsForCall)]
 	fake.increaseActiveTasksArgsForCall = append(fake.increaseActiveTasksArgsForCall, struct {
-		arg1 worker.Client
+		arg1 worker.Worker
 	}{arg1})
 	stub := fake.IncreaseActiveTasksStub
 	fakeReturns := fake.increaseActiveTasksReturns
@@ -353,13 +353,13 @@ func (fake *FakeTaskDelegate) IncreaseActiveTasksCallCount() int {
 	return len(fake.increaseActiveTasksArgsForCall)
 }
 
-func (fake *FakeTaskDelegate) IncreaseActiveTasksCalls(stub func(worker.Client) error) {
+func (fake *FakeTaskDelegate) IncreaseActiveTasksCalls(stub func(worker.Worker) error) {
 	fake.increaseActiveTasksMutex.Lock()
 	defer fake.increaseActiveTasksMutex.Unlock()
 	fake.IncreaseActiveTasksStub = stub
 }
 
-func (fake *FakeTaskDelegate) IncreaseActiveTasksArgsForCall(i int) worker.Client {
+func (fake *FakeTaskDelegate) IncreaseActiveTasksArgsForCall(i int) worker.Worker {
 	fake.increaseActiveTasksMutex.RLock()
 	defer fake.increaseActiveTasksMutex.RUnlock()
 	argsForCall := fake.increaseActiveTasksArgsForCall[i]
@@ -421,11 +421,11 @@ func (fake *FakeTaskDelegate) InitializingArgsForCall(i int) lager.Logger {
 	return argsForCall.arg1
 }
 
-func (fake *FakeTaskDelegate) SelectedWorker(arg1 lager.Logger, arg2 string) {
+func (fake *FakeTaskDelegate) SelectedWorker(arg1 lager.Logger, arg2 worker.Worker) {
 	fake.selectedWorkerMutex.Lock()
 	fake.selectedWorkerArgsForCall = append(fake.selectedWorkerArgsForCall, struct {
 		arg1 lager.Logger
-		arg2 string
+		arg2 worker.Worker
 	}{arg1, arg2})
 	stub := fake.SelectedWorkerStub
 	fake.recordInvocation("SelectedWorker", []interface{}{arg1, arg2})
@@ -441,13 +441,13 @@ func (fake *FakeTaskDelegate) SelectedWorkerCallCount() int {
 	return len(fake.selectedWorkerArgsForCall)
 }
 
-func (fake *FakeTaskDelegate) SelectedWorkerCalls(stub func(lager.Logger, string)) {
+func (fake *FakeTaskDelegate) SelectedWorkerCalls(stub func(lager.Logger, worker.Worker)) {
 	fake.selectedWorkerMutex.Lock()
 	defer fake.selectedWorkerMutex.Unlock()
 	fake.SelectedWorkerStub = stub
 }
 
-func (fake *FakeTaskDelegate) SelectedWorkerArgsForCall(i int) (lager.Logger, string) {
+func (fake *FakeTaskDelegate) SelectedWorkerArgsForCall(i int) (lager.Logger, worker.Worker) {
 	fake.selectedWorkerMutex.RLock()
 	defer fake.selectedWorkerMutex.RUnlock()
 	argsForCall := fake.selectedWorkerArgsForCall[i]

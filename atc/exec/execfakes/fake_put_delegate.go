@@ -59,11 +59,11 @@ type FakePutDelegate struct {
 		arg4 atc.VersionedResourceTypes
 		arg5 runtime.VersionResult
 	}
-	SelectedWorkerStub        func(lager.Logger, string)
+	SelectedWorkerStub        func(lager.Logger, worker.Worker)
 	selectedWorkerMutex       sync.RWMutex
 	selectedWorkerArgsForCall []struct {
 		arg1 lager.Logger
-		arg2 string
+		arg2 worker.Worker
 	}
 	StartSpanStub        func(context.Context, string, tracing.Attrs) (context.Context, trace.Span)
 	startSpanMutex       sync.RWMutex
@@ -316,11 +316,11 @@ func (fake *FakePutDelegate) SaveOutputArgsForCall(i int) (lager.Logger, atc.Put
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
-func (fake *FakePutDelegate) SelectedWorker(arg1 lager.Logger, arg2 string) {
+func (fake *FakePutDelegate) SelectedWorker(arg1 lager.Logger, arg2 worker.Worker) {
 	fake.selectedWorkerMutex.Lock()
 	fake.selectedWorkerArgsForCall = append(fake.selectedWorkerArgsForCall, struct {
 		arg1 lager.Logger
-		arg2 string
+		arg2 worker.Worker
 	}{arg1, arg2})
 	stub := fake.SelectedWorkerStub
 	fake.recordInvocation("SelectedWorker", []interface{}{arg1, arg2})
@@ -336,13 +336,13 @@ func (fake *FakePutDelegate) SelectedWorkerCallCount() int {
 	return len(fake.selectedWorkerArgsForCall)
 }
 
-func (fake *FakePutDelegate) SelectedWorkerCalls(stub func(lager.Logger, string)) {
+func (fake *FakePutDelegate) SelectedWorkerCalls(stub func(lager.Logger, worker.Worker)) {
 	fake.selectedWorkerMutex.Lock()
 	defer fake.selectedWorkerMutex.Unlock()
 	fake.SelectedWorkerStub = stub
 }
 
-func (fake *FakePutDelegate) SelectedWorkerArgsForCall(i int) (lager.Logger, string) {
+func (fake *FakePutDelegate) SelectedWorkerArgsForCall(i int) (lager.Logger, worker.Worker) {
 	fake.selectedWorkerMutex.RLock()
 	defer fake.selectedWorkerMutex.RUnlock()
 	argsForCall := fake.selectedWorkerArgsForCall[i]

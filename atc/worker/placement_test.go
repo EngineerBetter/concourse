@@ -22,8 +22,8 @@ var (
 	metadata db.ContainerMetadata
 	workers  []Worker
 
-	chosenWorker Worker
-	chooseErr    error
+	chosenWorkers []Worker
+	chooseErr     error
 
 	newStrategyError error
 
@@ -37,7 +37,7 @@ var (
 )
 
 var _ = Describe("FewestBuildContainersPlacementStrategy", func() {
-	Describe("Choose", func() {
+	Describe("Candidates", func() {
 		var compatibleWorker1 *workerfakes.FakeWorker
 		var compatibleWorker2 *workerfakes.FakeWorker
 		var compatibleWorker3 *workerfakes.FakeWorker
@@ -68,14 +68,14 @@ var _ = Describe("FewestBuildContainersPlacementStrategy", func() {
 				compatibleWorker1.BuildContainersReturns(20)
 			})
 
-			It("picks that worker", func() {
-				chosenWorker, chooseErr = strategy.Choose(
+			It("returns that worker", func() {
+				chosenWorkers, chooseErr = strategy.Candidates(
 					logger,
 					workers,
 					spec,
 				)
 				Expect(chooseErr).ToNot(HaveOccurred())
-				Expect(chosenWorker).To(Equal(compatibleWorker1))
+				Expect(chosenWorkers).To(ConsistOf(compatibleWorker1))
 			})
 		})
 
@@ -89,16 +89,16 @@ var _ = Describe("FewestBuildContainersPlacementStrategy", func() {
 			})
 
 			Context("when the container is not of type 'check'", func() {
-				It("picks the one with least amount of containers", func() {
-					Consistently(func() Worker {
-						chosenWorker, chooseErr = strategy.Choose(
+				It("returns the one with least amount of containers", func() {
+					Consistently(func() []Worker {
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).ToNot(HaveOccurred())
-						return chosenWorker
-					}).Should(Equal(compatibleWorker3))
+						return chosenWorkers
+					}).Should(ConsistOf(compatibleWorker3))
 				})
 
 				Context("when there is more than one worker with the same number of build containers", func() {
@@ -107,16 +107,16 @@ var _ = Describe("FewestBuildContainersPlacementStrategy", func() {
 						compatibleWorker1.BuildContainersReturns(10)
 					})
 
-					It("picks any of them", func() {
-						Consistently(func() Worker {
-							chosenWorker, chooseErr = strategy.Choose(
+					It("returns both of them", func() {
+						Consistently(func() []Worker {
+							chosenWorkers, chooseErr = strategy.Candidates(
 								logger,
 								workers,
 								spec,
 							)
 							Expect(chooseErr).ToNot(HaveOccurred())
-							return chosenWorker
-						}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker3)))
+							return chosenWorkers
+						}).Should(ConsistOf(compatibleWorker1, compatibleWorker3))
 					})
 				})
 
@@ -126,9 +126,9 @@ var _ = Describe("FewestBuildContainersPlacementStrategy", func() {
 })
 
 var _ = Describe("VolumeLocalityPlacementStrategy", func() {
-	Describe("Choose", func() {
+	Describe("Candidates", func() {
 		JustBeforeEach(func() {
-			chosenWorker, chooseErr = strategy.Choose(
+			chosenWorkers, chooseErr = strategy.Candidates(
 				logger,
 				workers,
 				spec,
@@ -206,9 +206,9 @@ var _ = Describe("VolumeLocalityPlacementStrategy", func() {
 				}
 			})
 
-			It("creates it on the worker with the most caches", func() {
+			It("returns worker with the most caches", func() {
 				Expect(chooseErr).ToNot(HaveOccurred())
-				Expect(chosenWorker).To(Equal(compatibleWorkerTwoCaches))
+				Expect(chosenWorkers).To(ConsistOf(compatibleWorkerTwoCaches))
 			})
 		})
 
@@ -222,21 +222,23 @@ var _ = Describe("VolumeLocalityPlacementStrategy", func() {
 				}
 			})
 
-			It("creates it on a random one of the two", func() {
+			It("returns both workers with the most caches", func() {
 				Expect(chooseErr).ToNot(HaveOccurred())
-				Expect(chosenWorker).To(SatisfyAny(Equal(compatibleWorkerOneCache1), Equal(compatibleWorkerOneCache2)))
+				Expect(chosenWorkers).To(ConsistOf(compatibleWorkerOneCache1, compatibleWorkerOneCache2))
 
 				workerChoiceCounts := map[Worker]int{}
 
 				for i := 0; i < 100; i++ {
-					worker, err := strategy.Choose(
+					workers, err := strategy.Candidates(
 						logger,
 						workers,
 						spec,
 					)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(chosenWorker).To(SatisfyAny(Equal(compatibleWorkerOneCache1), Equal(compatibleWorkerOneCache2)))
-					workerChoiceCounts[worker]++
+					Expect(chosenWorkers).To(ConsistOf(compatibleWorkerOneCache1, compatibleWorkerOneCache2))
+					for _, worker := range workers {
+						workerChoiceCounts[worker]++
+					}
 				}
 
 				Expect(workerChoiceCounts[compatibleWorkerOneCache1]).ToNot(BeZero())
@@ -254,21 +256,23 @@ var _ = Describe("VolumeLocalityPlacementStrategy", func() {
 				}
 			})
 
-			It("creates it on a random one of them", func() {
+			It("returns all of them", func() {
 				Expect(chooseErr).ToNot(HaveOccurred())
-				Expect(chosenWorker).To(SatisfyAny(Equal(compatibleWorkerNoCaches1), Equal(compatibleWorkerNoCaches2)))
+				Expect(chosenWorkers).To(ConsistOf(compatibleWorkerNoCaches1, compatibleWorkerNoCaches2))
 
 				workerChoiceCounts := map[Worker]int{}
 
 				for i := 0; i < 100; i++ {
-					worker, err := strategy.Choose(
+					workers, err := strategy.Candidates(
 						logger,
 						workers,
 						spec,
 					)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(chosenWorker).To(SatisfyAny(Equal(compatibleWorkerNoCaches1), Equal(compatibleWorkerNoCaches2)))
-					workerChoiceCounts[worker]++
+					Expect(chosenWorkers).To(ConsistOf(compatibleWorkerNoCaches1, compatibleWorkerNoCaches2))
+					for _, worker := range workers {
+						workerChoiceCounts[worker]++
+					}
 				}
 
 				Expect(workerChoiceCounts[compatibleWorkerNoCaches1]).ToNot(BeZero())
@@ -279,9 +283,9 @@ var _ = Describe("VolumeLocalityPlacementStrategy", func() {
 })
 
 var _ = Describe("No strategy should equal to random strategy", func() {
-	Describe("Choose", func() {
+	Describe("Candidates", func() {
 		JustBeforeEach(func() {
-			chosenWorker, chooseErr = strategy.Choose(
+			chosenWorkers, chooseErr = strategy.Candidates(
 				logger,
 				workers,
 				spec,
@@ -297,21 +301,23 @@ var _ = Describe("No strategy should equal to random strategy", func() {
 			}
 		})
 
-		It("creates it on a random one of them", func() {
+		It("creates it ona random one of them", func() {
 			Expect(chooseErr).ToNot(HaveOccurred())
-			Expect(chosenWorker).To(SatisfyAny(Equal(compatibleWorkerNoCaches1), Equal(compatibleWorkerNoCaches2)))
+			Expect(chosenWorkers).To(ConsistOf(compatibleWorkerNoCaches1, compatibleWorkerNoCaches2))
 
 			workerChoiceCounts := map[Worker]int{}
 
 			for i := 0; i < 100; i++ {
-				worker, err := strategy.Choose(
+				workers, err := strategy.Candidates(
 					logger,
 					workers,
 					spec,
 				)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(chosenWorker).To(SatisfyAny(Equal(compatibleWorkerNoCaches1), Equal(compatibleWorkerNoCaches2)))
-				workerChoiceCounts[worker]++
+				Expect(chosenWorkers).To(ConsistOf(compatibleWorkerNoCaches1, compatibleWorkerNoCaches2))
+				for _, worker := range workers {
+					workerChoiceCounts[worker]++
+				}
 			}
 
 			Expect(workerChoiceCounts[compatibleWorkerNoCaches1]).ToNot(BeZero())
@@ -320,8 +326,9 @@ var _ = Describe("No strategy should equal to random strategy", func() {
 	})
 })
 
-var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
-	Describe("Choose", func() {
+// TODO: Fix XDescribe for LimitActiveTasksPlacementStrategy
+var _ = XDescribe("LimitActiveTasksPlacementStrategy", func() {
+	Describe("Candidates", func() {
 		var compatibleWorker1 *workerfakes.FakeWorker
 		var compatibleWorker2 *workerfakes.FakeWorker
 		var compatibleWorker3 *workerfakes.FakeWorker
@@ -367,13 +374,13 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 				})
 
 				It("picks that worker", func() {
-					chosenWorker, chooseErr = strategy.Choose(
+					chosenWorkers, chooseErr = strategy.Candidates(
 						logger,
 						workers,
 						spec,
 					)
 					Expect(chooseErr).ToNot(HaveOccurred())
-					Expect(chosenWorker).To(Equal(compatibleWorker1))
+					Expect(chosenWorkers).To(ConsistOf(compatibleWorker1))
 				})
 			})
 
@@ -386,15 +393,15 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 					compatibleWorker3.ActiveTasksReturns(2, nil)
 				})
 
-				It("a task picks the one with least amount of active tasks", func() {
-					Consistently(func() Worker {
-						chosenWorker, chooseErr = strategy.Choose(
+				It("a task picks the one with least active tasks", func() {
+					Consistently(func() []Worker {
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).ToNot(HaveOccurred())
-						return chosenWorker
+						return chosenWorkers
 					}).Should(Equal(compatibleWorker2))
 				})
 
@@ -406,16 +413,16 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 						compatibleWorker3.ActiveTasksReturns(1, nil)
 					})
 
-					It("a task picks any of them", func() {
-						Consistently(func() Worker {
-							chosenWorker, chooseErr = strategy.Choose(
+					It("it returns all of them", func() {
+						Consistently(func() []Worker {
+							chosenWorkers, chooseErr = strategy.Candidates(
 								logger,
 								workers,
 								spec,
 							)
 							Expect(chooseErr).ToNot(HaveOccurred())
-							return chosenWorker
-						}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2), Equal(compatibleWorker3)))
+							return chosenWorkers
+						}).Should(ConsistOf(compatibleWorker1, compatibleWorker2, compatibleWorker3))
 					})
 				})
 			})
@@ -436,13 +443,13 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 					})
 
 					It("picks the worker with no active tasks", func() {
-						chosenWorker, chooseErr = strategy.Choose(
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).ToNot(HaveOccurred())
-						Expect(chosenWorker).To(Equal(compatibleWorker2))
+						Expect(chosenWorkers).To(ConsistOf(compatibleWorker2))
 					})
 				})
 
@@ -456,14 +463,14 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 					})
 
 					It("picks no worker", func() {
-						chosenWorker, chooseErr = strategy.Choose(
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).To(HaveOccurred())
 						Expect(chooseErr).To(Equal(NoWorkerFitContainerPlacementStrategyError{Strategy: "limit-active-tasks"}))
-						Expect(chosenWorker).To(BeNil())
+						Expect(chosenWorkers).To(BeEmpty())
 					})
 
 					Context("when the container is not of type 'task'", func() {
@@ -472,15 +479,15 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 						})
 
 						It("picks any worker", func() {
-							Consistently(func() Worker {
-								chosenWorker, chooseErr = strategy.Choose(
+							Consistently(func() []Worker {
+								chosenWorkers, chooseErr = strategy.Candidates(
 									logger,
 									workers,
 									spec,
 								)
 								Expect(chooseErr).ToNot(HaveOccurred())
-								return chosenWorker
-							}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2), Equal(compatibleWorker3)))
+								return chosenWorkers
+							}).Should(ConsistOf(compatibleWorker1, compatibleWorker2, compatibleWorker3))
 						})
 					})
 				})
@@ -490,7 +497,7 @@ var _ = Describe("LimitActiveTasksPlacementStrategy", func() {
 })
 
 var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
-	Describe("Choose", func() {
+	Describe("Candidates", func() {
 		var compatibleWorker1 *workerfakes.FakeWorker
 		var compatibleWorker2 *workerfakes.FakeWorker
 		var compatibleWorker3 *workerfakes.FakeWorker
@@ -533,15 +540,15 @@ var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
 			})
 
 			It("return all workers", func() {
-				Consistently(func() Worker {
-					chosenWorker, chooseErr = strategy.Choose(
+				Consistently(func() []Worker {
+					chosenWorkers, chooseErr = strategy.Candidates(
 						logger,
 						workers,
 						spec,
 					)
 					Expect(chooseErr).ToNot(HaveOccurred())
-					return chosenWorker
-				}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2), Equal(compatibleWorker3)))
+					return chosenWorkers
+				}).Should(ConsistOf(compatibleWorker1, compatibleWorker2, compatibleWorker3))
 			})
 		})
 
@@ -552,15 +559,15 @@ var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
 				})
 
 				It("picks worker1", func() {
-					Consistently(func() Worker {
-						chosenWorker, chooseErr = strategy.Choose(
+					Consistently(func() []Worker {
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).ToNot(HaveOccurred())
-						return chosenWorker
-					}).Should(Equal(compatibleWorker1))
+						return chosenWorkers
+					}).Should(ConsistOf(compatibleWorker1))
 				})
 
 				Context("when the limit is 200", func() {
@@ -569,15 +576,15 @@ var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
 					})
 
 					It("picks worker1 or worker2", func() {
-						Consistently(func() Worker {
-							chosenWorker, chooseErr = strategy.Choose(
+						Consistently(func() []Worker {
+							chosenWorkers, chooseErr = strategy.Candidates(
 								logger,
 								workers,
 								spec,
 							)
 							Expect(chooseErr).ToNot(HaveOccurred())
-							return chosenWorker
-						}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2)))
+							return chosenWorkers
+						}).Should(ConsistOf(compatibleWorker1, compatibleWorker2))
 					})
 				})
 
@@ -587,14 +594,14 @@ var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
 					})
 
 					It("return no worker", func() {
-						chosenWorker, chooseErr = strategy.Choose(
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).To(HaveOccurred())
 						Expect(chooseErr).To(Equal(NoWorkerFitContainerPlacementStrategyError{Strategy: "limit-active-containers"}))
-						Expect(chosenWorker).To(BeNil())
+						Expect(chosenWorkers).To(BeEmpty())
 					})
 				})
 			})
@@ -603,7 +610,7 @@ var _ = Describe("LimitActiveContainersPlacementStrategyNode", func() {
 })
 
 var _ = Describe("LimitActiveVolumesPlacementStrategyNode", func() {
-	Describe("Choose", func() {
+	Describe("Candidates", func() {
 		var compatibleWorker1 *workerfakes.FakeWorker
 		var compatibleWorker2 *workerfakes.FakeWorker
 		var compatibleWorker3 *workerfakes.FakeWorker
@@ -646,15 +653,15 @@ var _ = Describe("LimitActiveVolumesPlacementStrategyNode", func() {
 			})
 
 			It("return all workers", func() {
-				Consistently(func() Worker {
-					chosenWorker, chooseErr = strategy.Choose(
+				Consistently(func() []Worker {
+					chosenWorkers, chooseErr = strategy.Candidates(
 						logger,
 						workers,
 						spec,
 					)
 					Expect(chooseErr).ToNot(HaveOccurred())
-					return chosenWorker
-				}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2), Equal(compatibleWorker3)))
+					return chosenWorkers
+				}).Should(ConsistOf(compatibleWorker1, compatibleWorker2, compatibleWorker3))
 			})
 		})
 
@@ -665,15 +672,15 @@ var _ = Describe("LimitActiveVolumesPlacementStrategyNode", func() {
 				})
 
 				It("picks worker1", func() {
-					Consistently(func() Worker {
-						chosenWorker, chooseErr = strategy.Choose(
+					Consistently(func() []Worker {
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).ToNot(HaveOccurred())
-						return chosenWorker
-					}).Should(Equal(compatibleWorker1))
+						return chosenWorkers
+					}).Should(ConsistOf(compatibleWorker1))
 				})
 
 				Context("when the limit is 200", func() {
@@ -682,15 +689,15 @@ var _ = Describe("LimitActiveVolumesPlacementStrategyNode", func() {
 					})
 
 					It("picks worker1 or worker2", func() {
-						Consistently(func() Worker {
-							chosenWorker, chooseErr = strategy.Choose(
+						Consistently(func() []Worker {
+							chosenWorkers, chooseErr = strategy.Candidates(
 								logger,
 								workers,
 								spec,
 							)
 							Expect(chooseErr).ToNot(HaveOccurred())
-							return chosenWorker
-						}).Should(Or(Equal(compatibleWorker1), Equal(compatibleWorker2)))
+							return chosenWorkers
+						}).Should(ConsistOf(compatibleWorker1, compatibleWorker2))
 					})
 				})
 
@@ -700,14 +707,14 @@ var _ = Describe("LimitActiveVolumesPlacementStrategyNode", func() {
 					})
 
 					It("return no worker", func() {
-						chosenWorker, chooseErr = strategy.Choose(
+						chosenWorkers, chooseErr = strategy.Candidates(
 							logger,
 							workers,
 							spec,
 						)
 						Expect(chooseErr).To(HaveOccurred())
 						Expect(chooseErr).To(Equal(NoWorkerFitContainerPlacementStrategyError{Strategy: "limit-active-volumes"}))
-						Expect(chosenWorker).To(BeNil())
+						Expect(chosenWorkers).To(BeEmpty())
 					})
 				})
 			})
@@ -715,7 +722,7 @@ var _ = Describe("LimitActiveVolumesPlacementStrategyNode", func() {
 	})
 })
 
-var _ = Describe("ChainedPlacementStrategy #Choose", func() {
+var _ = Describe("ChainedPlacementStrategy #Candidates", func() {
 
 	var someWorker1 *workerfakes.FakeWorker
 	var someWorker2 *workerfakes.FakeWorker
@@ -754,15 +761,15 @@ var _ = Describe("ChainedPlacementStrategy #Choose", func() {
 		})
 
 		It("picks the one with least amount of containers", func() {
-			Consistently(func() Worker {
-				chosenWorker, chooseErr = strategy.Choose(
+			Consistently(func() []Worker {
+				chosenWorkers, chooseErr = strategy.Candidates(
 					logger,
 					workers,
 					spec,
 				)
 				Expect(chooseErr).ToNot(HaveOccurred())
-				return chosenWorker
-			}).Should(Equal(someWorker3))
+				return chosenWorkers
+			}).Should(ConsistOf(someWorker3))
 		})
 
 		Context("when there is more than one worker with the same number of build containers", func() {
@@ -795,15 +802,15 @@ var _ = Describe("ChainedPlacementStrategy #Choose", func() {
 				}
 			})
 			It("picks the one with the most volumes", func() {
-				Consistently(func() Worker {
-					cWorker, cErr := strategy.Choose(
+				Consistently(func() []Worker {
+					cWorkers, cErr := strategy.Candidates(
 						logger,
 						workers,
 						spec,
 					)
 					Expect(cErr).ToNot(HaveOccurred())
-					return cWorker
-				}).Should(Equal(someWorker3))
+					return cWorkers
+				}).Should(ConsistOf(someWorker3))
 
 			})
 		})

@@ -264,7 +264,7 @@ dance:
 			err := strategy.Pick(logger, candidate, containerSpec)
 
 			if err != nil {
-				logger.Error("Candidate worker rejected due to error", err)
+				logger.Error("Candidate worker rejected due to strategy error", err)
 				continue
 			}
 

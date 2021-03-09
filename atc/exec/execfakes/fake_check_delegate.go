@@ -74,11 +74,11 @@ type FakeCheckDelegate struct {
 	pointToCheckedConfigReturnsOnCall map[int]struct {
 		result1 error
 	}
-	SelectedWorkerStub        func(lager.Logger, string)
+	SelectedWorkerStub        func(lager.Logger, worker.Worker)
 	selectedWorkerMutex       sync.RWMutex
 	selectedWorkerArgsForCall []struct {
 		arg1 lager.Logger
-		arg2 string
+		arg2 worker.Worker
 	}
 	StartSpanStub        func(context.Context, string, tracing.Attrs) (context.Context, trace.Span)
 	startSpanMutex       sync.RWMutex
@@ -435,11 +435,11 @@ func (fake *FakeCheckDelegate) PointToCheckedConfigReturnsOnCall(i int, result1 
 	}{result1}
 }
 
-func (fake *FakeCheckDelegate) SelectedWorker(arg1 lager.Logger, arg2 string) {
+func (fake *FakeCheckDelegate) SelectedWorker(arg1 lager.Logger, arg2 worker.Worker) {
 	fake.selectedWorkerMutex.Lock()
 	fake.selectedWorkerArgsForCall = append(fake.selectedWorkerArgsForCall, struct {
 		arg1 lager.Logger
-		arg2 string
+		arg2 worker.Worker
 	}{arg1, arg2})
 	stub := fake.SelectedWorkerStub
 	fake.recordInvocation("SelectedWorker", []interface{}{arg1, arg2})
@@ -455,13 +455,13 @@ func (fake *FakeCheckDelegate) SelectedWorkerCallCount() int {
 	return len(fake.selectedWorkerArgsForCall)
 }
 
-func (fake *FakeCheckDelegate) SelectedWorkerCalls(stub func(lager.Logger, string)) {
+func (fake *FakeCheckDelegate) SelectedWorkerCalls(stub func(lager.Logger, worker.Worker)) {
 	fake.selectedWorkerMutex.Lock()
 	defer fake.selectedWorkerMutex.Unlock()
 	fake.SelectedWorkerStub = stub
 }
 
-func (fake *FakeCheckDelegate) SelectedWorkerArgsForCall(i int) (lager.Logger, string) {
+func (fake *FakeCheckDelegate) SelectedWorkerArgsForCall(i int) (lager.Logger, worker.Worker) {
 	fake.selectedWorkerMutex.RLock()
 	defer fake.selectedWorkerMutex.RUnlock()
 	argsForCall := fake.selectedWorkerArgsForCall[i]
