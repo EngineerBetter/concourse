@@ -310,6 +310,7 @@ var _ = Describe("Client", func() {
 			}
 			fakeContainer = new(workerfakes.FakeContainer)
 			fakeContainer.PropertiesReturns(garden.Properties{"concourse:exit-status": "0"}, nil)
+			fakeContainer.UpdateExitCodeReturns(nil)
 			fakeWorker.FindOrCreateContainerReturns(fakeContainer, nil)
 
 			fakeEventDelegate = new(runtimefakes.FakeStartingEventDelegate)
@@ -533,6 +534,7 @@ var _ = Describe("Client", func() {
 					It("returns a successful result", func() {
 						Expect(status).To(BeZero())
 						Expect(err).ToNot(HaveOccurred())
+						Expect(fakeContainer.UpdateExitCodeArgsForCall(0)).To(Equal(0))
 					})
 
 					It("returns all the volume mounts", func() {
@@ -563,6 +565,7 @@ var _ = Describe("Client", func() {
 						Expect(status).To(Equal(fakeProcessExitCode))
 						Expect(err).To(HaveOccurred())
 						Expect(err).To(Equal(disaster))
+						Expect(fakeContainer.UpdateExitCodeArgsForCall(0)).To(Equal(fakeProcessExitCode))
 					})
 
 					It("returns no volume mounts", func() {
@@ -657,6 +660,7 @@ var _ = Describe("Client", func() {
 						name, value := fakeContainer.SetPropertyArgsForCall(0)
 						Expect(name).To(Equal("concourse:exit-status"))
 						Expect(value).To(Equal("0"))
+						Expect(fakeContainer.UpdateExitCodeArgsForCall(0)).To(Equal(0))
 					})
 
 					Context("when saving the exit status succeeds", func() {
@@ -760,6 +764,7 @@ var _ = Describe("Client", func() {
 						name, value := fakeContainer.SetPropertyArgsForCall(0)
 						Expect(name).To(Equal("concourse:exit-status"))
 						Expect(value).To(Equal(fmt.Sprint(fakeProcessExitCode)))
+						Expect(fakeContainer.UpdateExitCodeArgsForCall(0)).To(Equal(fakeProcessExitCode))
 					})
 
 					Context("when saving the exit status succeeds", func() {
