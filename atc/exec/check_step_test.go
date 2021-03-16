@@ -404,6 +404,10 @@ var _ = Describe("CheckStep", func() {
 						Expect(containerSpec.Env).To(ContainElement("BUILD_TEAM_ID=345"))
 					})
 
+					It("with type", func() {
+						Expect(containerSpec.Type).To(Equal(db.ContainerTypeCheck))
+					})
+
 					Context("when tracing is enabled", func() {
 						var buildSpan trace.Span
 

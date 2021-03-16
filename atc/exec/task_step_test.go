@@ -258,6 +258,7 @@ var _ = Describe("TaskStep", func() {
 		It("creates a containerSpec with the correct parameters", func() {
 			Expect(containerSpec.Dir).To(Equal("some-artifact-root"))
 			Expect(containerSpec.User).To(BeEmpty())
+			Expect(containerSpec.Type).To(Equal(db.ContainerTypeTask))
 		})
 
 		It("creates the task process spec with the correct parameters", func() {

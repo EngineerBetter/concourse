@@ -190,12 +190,10 @@ func (step *PutStep) run(ctx context.Context, state RunState, delegate PutDelega
 	containerSpec := worker.ContainerSpec{
 		ImageSpec: imageSpec,
 		TeamID:    step.metadata.TeamID,
-
-		Dir: step.containerMetadata.WorkingDirectory,
-
-		Env: step.metadata.Env(),
-
-		Inputs: containerInputs,
+		Dir:       step.containerMetadata.WorkingDirectory,
+		Env:       step.metadata.Env(),
+		Inputs:    containerInputs,
+		Type:      db.ContainerTypePut,
 	}
 	tracing.Inject(ctx, &containerSpec)
 

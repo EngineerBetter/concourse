@@ -176,6 +176,7 @@ func (step *GetStep) run(ctx context.Context, state RunState, delegate GetDelega
 	containerSpec := worker.ContainerSpec{
 		ImageSpec: imageSpec,
 		TeamID:    step.metadata.TeamID,
+		Type:      db.ContainerTypeGet,
 		Env:       step.metadata.Env(),
 	}
 	tracing.Inject(ctx, &containerSpec)

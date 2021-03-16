@@ -396,6 +396,7 @@ var _ = Describe("PutStep", func() {
 		Expect(containerSpec.Env).To(Equal(stepMetadata.Env()))
 		Expect(containerSpec.Dir).To(Equal("/tmp/build/put"))
 		Expect(containerSpec.Inputs).To(Equal(expectedInputs))
+		Expect(containerSpec.Type).To(Equal(db.ContainerTypePut))
 
 		Expect(metadata).To(Equal(containerMetadata))
 

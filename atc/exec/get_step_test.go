@@ -262,6 +262,7 @@ var _ = Describe("GetStep", func() {
 				},
 				TeamID: stepMetadata.TeamID,
 				Env:    stepMetadata.Env(),
+				Type:   db.ContainerTypeGet,
 			},
 		))
 	})

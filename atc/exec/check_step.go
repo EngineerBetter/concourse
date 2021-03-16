@@ -279,6 +279,7 @@ func (step *CheckStep) runCheck(
 			&worker.CertsVolumeMount{Logger: logger},
 		},
 		TeamID: step.metadata.TeamID,
+		Type:   db.ContainerTypeCheck,
 		Env:    step.metadata.Env(),
 	}
 	tracing.Inject(ctx, &containerSpec)
