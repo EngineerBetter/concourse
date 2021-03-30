@@ -189,6 +189,7 @@ func tick(logger lager.Logger, m *Monitor) {
 				Value: gauge.Max(),
 				Attributes: map[string]string{
 					"platform":   labels.Platform,
+					"team":       labels.Team,
 					"teamId":     labels.TeamId,
 					"type":       labels.Type,
 					"workerTags": labels.WorkerTags,
