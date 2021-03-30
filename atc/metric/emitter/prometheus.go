@@ -205,7 +205,7 @@ func (config *PrometheusConfig) NewEmitter() (metric.Emitter, error) {
 		Subsystem: "steps",
 		Name:      "waiting",
 		Help:      "Number of Concourse build steps currently waiting.",
-	}, []string{"platform", "teamId", "type", "workerTags"})
+	}, []string{"platform", "team", "teamId", "type", "workerTags"})
 	prometheus.MustRegister(stepsWaiting)
 
 	stepsWaitingDuration := prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -564,6 +564,7 @@ func (emitter *PrometheusEmitter) Emit(logger lager.Logger, event metric.Event) 
 		emitter.stepsWaiting.
 			WithLabelValues(
 				event.Attributes["platform"],
+				event.Attributes["team"],
 				event.Attributes["teamId"],
 				event.Attributes["type"],
 				event.Attributes["workerTags"],
