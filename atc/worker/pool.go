@@ -40,6 +40,7 @@ type Pool interface {
 		WorkerSpec,
 		ContainerPlacementStrategy,
 		PoolCallbacks,
+		string,
 	) (Client, time.Duration, error)
 
 	ReleaseWorker(
@@ -257,12 +258,14 @@ func (pool *pool) SelectWorker(
 	workerSpec WorkerSpec,
 	strategy ContainerPlacementStrategy,
 	callbacks PoolCallbacks,
+	team string,
 ) (Client, time.Duration, error) {
 	logger := lagerctx.FromContext(ctx)
 
 	started := time.Now()
 	labels := metric.StepsWaitingLabels{
 		Platform:   workerSpec.Platform,
+		Team:       team,
 		TeamId:     strconv.Itoa(workerSpec.TeamID),
 		Type:       string(containerSpec.Type),
 		WorkerTags: strings.Join(workerSpec.Tags, "_"),

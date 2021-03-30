@@ -304,6 +304,7 @@ func (step *CheckStep) runCheck(
 		workerSpec,
 		step.strategy,
 		delegate,
+		step.metadata.TeamName,
 	)
 	if err != nil {
 		return worker.CheckResult{}, err

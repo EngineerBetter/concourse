@@ -161,7 +161,7 @@ var _ = Describe("TaskStep", func() {
 
 	expectWorkerSpecResourceTypeUnset := func() {
 		Expect(fakePool.SelectWorkerCallCount()).To(Equal(1))
-		_, _, _, workerSpec, _, _ := fakePool.SelectWorkerArgsForCall(0)
+		_, _, _, workerSpec, _, _, _ := fakePool.SelectWorkerArgsForCall(0)
 		Expect(workerSpec.ResourceType).To(Equal(""))
 	}
 

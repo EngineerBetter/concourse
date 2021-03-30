@@ -496,7 +496,7 @@ var _ = Describe("PutStep", func() {
 
 		It("sets the bottom-most type in the worker spec", func() {
 			Expect(fakePool.SelectWorkerCallCount()).To(Equal(1))
-			_, _, _, workerSpec, _, _ := fakePool.SelectWorkerArgsForCall(0)
+			_, _, _, workerSpec, _, _, _ := fakePool.SelectWorkerArgsForCall(0)
 
 			Expect(workerSpec).To(Equal(worker.WorkerSpec{
 				TeamID:       stepMetadata.TeamID,

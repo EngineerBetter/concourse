@@ -217,6 +217,7 @@ func (step *GetStep) run(ctx context.Context, state RunState, delegate GetDelega
 		workerSpec,
 		step.strategy,
 		delegate,
+		step.metadata.TeamName,
 	)
 	if err != nil {
 		return false, err
