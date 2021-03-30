@@ -252,6 +252,7 @@ func (step *TaskStep) run(ctx context.Context, state RunState, delegate TaskDele
 		step.workerSpec(config),
 		step.strategy,
 		delegate,
+		step.metadata.TeamName,
 	)
 	if err != nil {
 		return false, err
