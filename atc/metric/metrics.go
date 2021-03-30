@@ -13,6 +13,7 @@ import (
 
 type StepsWaitingLabels struct {
 	Platform   string
+	Team       string
 	TeamId     string
 	Type       string
 	WorkerTags string
