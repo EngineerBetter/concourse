@@ -14,6 +14,7 @@ import (
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/db/dbfakes"
+	"github.com/concourse/concourse/atc/policy/policyfakes"
 	. "github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/atc/worker/workerfakes"
 	. "github.com/onsi/ginkgo"
@@ -22,8 +23,9 @@ import (
 
 var _ = Describe("Pool", func() {
 	var (
-		logger       *lagertest.TestLogger
-		fakeProvider *workerfakes.FakeWorkerProvider
+		logger            *lagertest.TestLogger
+		fakeProvider      *workerfakes.FakeWorkerProvider
+		fakePolicyChecker *policyfakes.FakeChecker
 
 		pool Pool
 	)
@@ -31,8 +33,9 @@ var _ = Describe("Pool", func() {
 	BeforeEach(func() {
 		logger = lagertest.NewTestLogger("test")
 		fakeProvider = new(workerfakes.FakeWorkerProvider)
+		fakePolicyChecker = new(policyfakes.FakeChecker)
 
-		pool = NewPool(fakeProvider)
+		pool = NewPool(fakeProvider, fakePolicyChecker)
 	})
 
 	Describe("FindContainer", func() {
@@ -222,6 +225,8 @@ var _ = Describe("Pool", func() {
 			selectedWorker Client
 			selectCtx      context.Context
 			selectErr      error
+
+			team string
 		)
 
 		updateWorkersFromFakes := func() {
@@ -247,6 +252,8 @@ var _ = Describe("Pool", func() {
 
 			fakeStrategy = new(workerfakes.FakeContainerPlacementStrategy)
 			fakeCallbacks = new(workerfakes.FakePoolCallbacks)
+
+			team = "some-team"
 
 			workerFakes = []*workerfakes.FakeWorker{
 				new(workerfakes.FakeWorker),
@@ -278,6 +285,7 @@ var _ = Describe("Pool", func() {
 					workerSpec,
 					fakeStrategy,
 					fakeCallbacks,
+					team,
 				)
 
 				close(done)
@@ -547,6 +555,7 @@ var _ = Describe("Pool", func() {
 					workerSpec,
 					fakeStrategy,
 					fakeCallbacks,
+					team,
 				)
 
 				close(done)

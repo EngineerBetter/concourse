@@ -13,6 +13,7 @@ import (
 
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/metric"
+	"github.com/concourse/concourse/atc/policy"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -64,14 +65,16 @@ type VolumeFinder interface {
 }
 
 type pool struct {
-	provider WorkerProvider
-	waker    chan bool
+	provider      WorkerProvider
+	waker         chan bool
+	policyChecker policy.Checker
 }
 
-func NewPool(provider WorkerProvider) Pool {
+func NewPool(provider WorkerProvider, policyChecker policy.Checker) Pool {
 	return &pool{
-		provider: provider,
-		waker:    make(chan bool),
+		provider:      provider,
+		waker:         make(chan bool),
+		policyChecker: policyChecker,
 	}
 }
 
@@ -149,6 +152,11 @@ func (pool *pool) findWorkerFromStrategy(
 		err := strategy.Pick(logger, candidate, containerSpec)
 
 		if err == nil {
+			err1 := pool.checkWorkerPolicy(candidate, containerSpec)
+			if err1 != nil {
+				logger.Error("Candidate worker rejected due to policy check", err)
+				continue
+			}
 			return candidate, nil
 		}
 
@@ -160,6 +168,45 @@ func (pool *pool) findWorkerFromStrategy(
 
 	logger.Debug("all-candidate-workers-rejected-during-selection", lager.Data{"reason": strategyError.Error()})
 	return nil, nil
+}
+
+func (pool *pool) checkWorkerPolicy(worker Worker, containerSpec ContainerSpec) error {
+	if !pool.policyChecker.ShouldCheckAction(policy.ActionPickWorker) {
+		return nil
+	}
+
+	activeTasks, err := worker.ActiveTasks()
+	if err != nil {
+		return fmt.Errorf("perform check: %w", err)
+	}
+
+	result, err := pool.policyChecker.Check(policy.PolicyCheckInput{
+		Action: policy.ActionPickWorker,
+		Data: map[string]interface{}{
+			"worker": map[string]interface{}{
+				"name":             worker.Name(),
+				"description":      worker.Description(),
+				"build_containers": worker.BuildContainers(),
+				"tags":             worker.Tags(),
+				"uptime":           worker.Uptime(),
+				"is_owned_by_team": worker.IsOwnedByTeam(),
+				"ephemeral":        worker.Ephemeral(),
+				"active_tasks":     activeTasks,
+			},
+			"container_spec": containerSpec,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("perform check: %w", err)
+	}
+
+	if !result.Allowed {
+		return policy.PolicyCheckNotPass{
+			Reasons: result.Reasons,
+		}
+	}
+
+	return nil
 }
 
 func (pool *pool) findWorker(
