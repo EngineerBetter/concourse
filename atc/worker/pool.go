@@ -140,6 +140,7 @@ func (pool *pool) findWorkerFromStrategy(
 	compatible []Worker,
 	containerSpec ContainerSpec,
 	strategy ContainerPlacementStrategy,
+	team string,
 ) (Worker, error) {
 	orderedWorkers, err := strategy.Order(logger, compatible, containerSpec)
 
@@ -158,7 +159,7 @@ func (pool *pool) findWorkerFromStrategy(
 			)
 			continue
 		}
-		err = pool.checkWorkerPolicy(candidate, containerSpec)
+		err = pool.checkWorkerPolicy(candidate, containerSpec, team)
 		if err != nil {
 			strategyError = multierror.Append(
 				strategyError,
@@ -173,7 +174,7 @@ func (pool *pool) findWorkerFromStrategy(
 	return nil, nil
 }
 
-func (pool *pool) checkWorkerPolicy(worker Worker, containerSpec ContainerSpec) error {
+func (pool *pool) checkWorkerPolicy(worker Worker, containerSpec ContainerSpec, team string) error {
 	if !pool.policyChecker.ShouldCheckAction(policy.ActionPickWorker) {
 		return nil
 	}
@@ -185,6 +186,7 @@ func (pool *pool) checkWorkerPolicy(worker Worker, containerSpec ContainerSpec) 
 
 	result, err := pool.policyChecker.Check(policy.PolicyCheckInput{
 		Action: policy.ActionPickWorker,
+		Team:   team,
 		Data: map[string]interface{}{
 			"worker": map[string]interface{}{
 				"name":             worker.Name(),
@@ -218,6 +220,7 @@ func (pool *pool) findWorker(
 	containerSpec ContainerSpec,
 	workerSpec WorkerSpec,
 	strategy ContainerPlacementStrategy,
+	team string,
 ) (Client, error) {
 	logger := lagerctx.FromContext(ctx)
 
@@ -245,6 +248,7 @@ func (pool *pool) findWorker(
 			compatibleWorkers,
 			containerSpec,
 			strategy,
+			team,
 		)
 		if err != nil {
 			return nil, err
@@ -325,7 +329,7 @@ func (pool *pool) SelectWorker(
 	var pollingTicker *time.Ticker
 	for {
 		var err error
-		worker, err = pool.findWorker(ctx, owner, containerSpec, workerSpec, strategy)
+		worker, err = pool.findWorker(ctx, owner, containerSpec, workerSpec, strategy, team)
 
 		if err != nil {
 			return nil, 0, err

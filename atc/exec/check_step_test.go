@@ -258,7 +258,7 @@ var _ = Describe("CheckStep", func() {
 
 				JustBeforeEach(func() {
 					Expect(fakePool.SelectWorkerCallCount()).To(Equal(1))
-					ctx, _, _, workerSpec, _, _ = fakePool.SelectWorkerArgsForCall(0)
+					ctx, _, _, workerSpec, _, _, _ = fakePool.SelectWorkerArgsForCall(0)
 				})
 
 				It("doesn't enforce a timeout", func() {

@@ -811,7 +811,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 					strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 						ContainerPlacementStrategy:   []string{"limit-active-containers", "volume-locality"},
 						MaxActiveContainersPerWorker: 0,
-					}, nil, nil)
+					}, nil)
 					Expect(strategyErr).ToNot(HaveOccurred())
 
 					order(true)
