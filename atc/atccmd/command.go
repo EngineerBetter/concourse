@@ -1067,7 +1067,7 @@ func (cmd *RunCommand) backendComponents(
 		return nil, err
 	}
 
-	buildContainerStrategy, err := cmd.chooseBuildContainerStrategy(dbContainerRepository, policyChecker)
+	buildContainerStrategy, err := cmd.chooseBuildContainerStrategy(dbContainerRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -1633,8 +1633,8 @@ func constructLockConn(driverName, connectionString string) (*sql.DB, error) {
 	return dbConn, nil
 }
 
-func (cmd *RunCommand) chooseBuildContainerStrategy(dbContainerRepository db.ContainerRepository, policyChecker policy.Checker) (worker.ContainerPlacementStrategy, error) {
-	return worker.NewChainPlacementStrategy(cmd.ContainerPlacementStrategyOptions, dbContainerRepository, policyChecker)
+func (cmd *RunCommand) chooseBuildContainerStrategy(dbContainerRepository db.ContainerRepository) (worker.ContainerPlacementStrategy, error) {
+	return worker.NewChainPlacementStrategy(cmd.ContainerPlacementStrategyOptions, dbContainerRepository)
 }
 
 func (cmd *RunCommand) configureAuthForDefaultTeam(teamFactory db.TeamFactory) error {
