@@ -9,8 +9,6 @@ import (
 	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db/dbfakes"
-	"github.com/concourse/concourse/atc/policy"
-	"github.com/concourse/concourse/atc/policy/policyfakes"
 	. "github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/atc/worker/workerfakes"
 
@@ -132,7 +130,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 		BeforeEach(func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{},
-			}, nil, nil)
+			}, nil)
 			Expect(strategyErr).ToNot(HaveOccurred())
 
 		})
@@ -157,7 +155,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 		JustBeforeEach(func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{"fewest-build-containers"},
-			}, nil, nil)
+			}, nil)
 			Expect(strategyErr).ToNot(HaveOccurred())
 		})
 
@@ -199,7 +197,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 		JustBeforeEach(func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{"volume-locality"},
-			}, nil, nil)
+			}, nil)
 			Expect(strategyErr).ToNot(HaveOccurred())
 		})
 
@@ -299,7 +297,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{"limit-active-tasks"},
 				MaxActiveTasksPerWorker:    limit,
-			}, nil, nil)
+			}, nil)
 
 			if !shouldError {
 				Expect(strategyErr).ToNot(HaveOccurred())
@@ -473,7 +471,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy:   []string{"limit-active-containers"},
 				MaxActiveContainersPerWorker: limit,
-			}, nil, nil)
+			}, nil)
 
 			if !shouldError {
 				Expect(strategyErr).ToNot(HaveOccurred())
@@ -585,7 +583,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{"limit-active-volumes"},
 				MaxActiveVolumesPerWorker:  limit,
-			}, nil, nil)
+			}, nil)
 
 			if !shouldError {
 				Expect(strategyErr).ToNot(HaveOccurred())
@@ -666,7 +664,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 		JustBeforeEach(func() {
 			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 				ContainerPlacementStrategy: []string{"limit-total-allocated-memory"},
-			}, containerRepository, nil)
+			}, containerRepository)
 
 			if !shouldError {
 				Expect(strategyErr).ToNot(HaveOccurred())
@@ -752,110 +750,13 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 		})
 	})
 
-	var _ = Describe("PolicyCheckPlacementStrategy", func() {
-		var policyChecker *policyfakes.FakeChecker
-
-		BeforeEach(func() {
-			policyChecker = new(policyfakes.FakeChecker)
-		})
-
-		JustBeforeEach(func() {
-			strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
-				ContainerPlacementStrategy: []string{"policy-check"},
-			}, nil, policyChecker)
-			Expect(strategyErr).ToNot(HaveOccurred())
-		})
-
-		Describe("strategy.Order", func() {
-			JustBeforeEach(func() {
-				order(true)
-			})
-
-			It("not order the workers at all", func() {
-				Consistently(func() []Worker {
-					return order(true)
-				}).Should(ContainElements(workers[0], workers[1], workers[2]))
-			})
-		})
-
-		Describe("strategy.Pick and strategy.Release", func() {
-			JustBeforeEach(func() {
-				pickAndRelease()
-			})
-
-			BeforeEach(func() {
-				orderedWorkers = workers
-			})
-
-			Context("when policy checker should not check action", func() {
-				BeforeEach(func() {
-					policyChecker.ShouldCheckActionReturns(false)
-				})
-
-				It("picks the first worker", func() {
-					Expect(pickedWorker).To(Equal(workers[0]))
-				})
-			})
-
-			Context("when all the workers pass policy check", func() {
-				BeforeEach(func() {
-					policyChecker.ShouldCheckActionReturns(true)
-					policyChecker.CheckReturns(policy.PassedPolicyCheck(), nil)
-				})
-
-				It("picks the first worker", func() {
-					Expect(pickedWorker).To(Equal(workers[0]))
-				})
-			})
-
-			Context("when only one worker passes the policy check", func() {
-				BeforeEach(func() {
-					policyChecker.ShouldCheckActionReturns(true)
-					policyChecker.CheckReturnsOnCall(0, policy.FailedPolicyCheck(), nil)
-					policyChecker.CheckReturnsOnCall(1, policy.PassedPolicyCheck(), nil)
-				})
-
-				It("picks the first passing worker", func() {
-					Expect(pickedWorker).To(Equal(workers[1]))
-				})
-			})
-
-			Context("when no workers passes policy check", func() {
-				BeforeEach(func() {
-					policyChecker.ShouldCheckActionReturns(true)
-					policyChecker.CheckReturns(policy.PolicyCheckOutput{
-						Allowed: false,
-						Reasons: []string{"that worker is not allowed"},
-					}, nil)
-				})
-
-				It("picks no worker", func() {
-					Expect(pickedWorker).To(BeNil())
-					Expect(pickErr).To(Equal(policy.PolicyCheckNotPass{Reasons: []string{"that worker is not allowed"}}))
-				})
-			})
-
-			Context("when policy checks error", func() {
-				BeforeEach(func() {
-					policyChecker.ShouldCheckActionReturns(true)
-					policyChecker.CheckReturns(policy.FailedPolicyCheck(), errors.New("something went wrong with the policy checker"))
-				})
-
-				It("returns the error", func() {
-					Expect(pickedWorker).To(BeNil())
-					Expect(pickErr).To(Equal(errors.New("something went wrong with the policy checker")))
-				})
-			})
-		})
-	})
-
 	Describe("Chained placement strategy", func() {
 		Describe("strategy.Order", func() {
 			Context("fewest-build-containers,volume-locality", func() {
 				JustBeforeEach(func() {
 					strategy, strategyErr = NewChainPlacementStrategy(ContainerPlacementStrategyOptions{
 						ContainerPlacementStrategy: []string{"fewest-build-containers", "volume-locality"},
-					}, nil, nil)
+					}, nil)
 					Expect(strategyErr).ToNot(HaveOccurred())
 
 					order(true)
@@ -948,7 +849,7 @@ var _ = Describe("ContainerPlacementStrategy", func() {
 						ContainerPlacementStrategy:   []string{"limit-active-containers", "limit-active-tasks"},
 						MaxActiveTasksPerWorker:      1,
 						MaxActiveContainersPerWorker: 1,
-					}, nil, nil)
+					}, nil)
 
 					Expect(strategyErr).ToNot(HaveOccurred())
 

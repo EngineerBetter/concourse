@@ -10,7 +10,6 @@ import (
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/policy"
 )
 
 type ContainerPlacementStrategyOptions struct {
@@ -65,11 +64,11 @@ type ChainPlacementStrategy struct {
 }
 
 func NewRandomPlacementStrategy() ContainerPlacementStrategy {
-	s, _ := NewChainPlacementStrategy(ContainerPlacementStrategyOptions{ContainerPlacementStrategy: []string{"random"}}, nil, nil)
+	s, _ := NewChainPlacementStrategy(ContainerPlacementStrategyOptions{ContainerPlacementStrategy: []string{"random"}}, nil)
 	return s
 }
 
-func NewChainPlacementStrategy(opts ContainerPlacementStrategyOptions, containerRepository db.ContainerRepository, policyChecker policy.Checker) (*ChainPlacementStrategy, error) {
+func NewChainPlacementStrategy(opts ContainerPlacementStrategyOptions, containerRepository db.ContainerRepository) (*ChainPlacementStrategy, error) {
 	cps := &ChainPlacementStrategy{
 		nodes: []ContainerPlacementStrategy{},
 	}
@@ -102,8 +101,6 @@ func NewChainPlacementStrategy(opts ContainerPlacementStrategyOptions, container
 			cps.nodes = append(cps.nodes, newLimitActiveVolumesPlacementStrategy(strategy, opts.MaxActiveVolumesPerWorker))
 		case "limit-total-allocated-memory":
 			cps.nodes = append(cps.nodes, newLimitTotalAllocatedMemoryPlacementStrategy(containerRepository))
-		case "policy-check":
-			cps.nodes = append(cps.nodes, newPolicyCheckPlacementStrategy(policyChecker))
 		case "volume-locality":
 			cps.nodes = append(cps.nodes, newVolumeLocalityStrategy(strategy))
 
@@ -473,59 +470,4 @@ func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) Release(logger lager
 
 func (strategy *LimitTotalAllocatedMemoryPlacementStrategy) Name() string {
 	return "limit-total-allocated-memory"
-}
-
-type PolicyCheckPlacementStrategy struct {
-	policyChecker policy.Checker
-}
-
-func newPolicyCheckPlacementStrategy(policyChecker policy.Checker) ContainerPlacementStrategy {
-	return &PolicyCheckPlacementStrategy{
-		policyChecker,
-	}
-}
-
-func (strategy *PolicyCheckPlacementStrategy) Order(logger lager.Logger, workers []Worker, spec ContainerSpec) ([]Worker, error) {
-	return workers, nil
-}
-
-func (strategy *PolicyCheckPlacementStrategy) Pick(logger lager.Logger, worker Worker, spec ContainerSpec) error {
-	if !strategy.policyChecker.ShouldCheckAction(policy.ActionPickWorker) {
-		return nil
-	}
-
-	result, err := strategy.policyChecker.Check(policy.PolicyCheckInput{
-		Action: policy.ActionPickWorker,
-		Data: map[string]interface{}{
-			"worker": map[string]interface{}{
-				"name":             worker.Name(),
-				"description":      worker.Description(),
-				"build_containers": worker.BuildContainers(),
-				"tags":             worker.Tags(),
-				"uptime":           worker.Uptime(),
-				"is_owned_by_team": worker.IsOwnedByTeam(),
-				"ephemeral":        worker.Ephemeral(),
-			},
-			"container_spec": spec,
-		},
-	})
-
-	if err != nil {
-		return err
-	}
-
-	if !result.Allowed {
-		return policy.PolicyCheckNotPass{
-			Reasons: result.Reasons,
-		}
-	}
-
-	return nil
-}
-
-func (strategy *PolicyCheckPlacementStrategy) Release(logger lager.Logger, worker Worker, spec ContainerSpec) {
-}
-
-func (strategy *PolicyCheckPlacementStrategy) Name() string {
-	return "policy-check"
 }
