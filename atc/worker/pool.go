@@ -151,19 +151,22 @@ func (pool *pool) findWorkerFromStrategy(
 	for _, candidate := range orderedWorkers {
 		err := strategy.Pick(logger, candidate, containerSpec)
 
-		if err == nil {
-			err1 := pool.checkWorkerPolicy(candidate, containerSpec)
-			if err1 != nil {
-				logger.Error("Candidate worker rejected due to policy check", err)
-				continue
-			}
-			return candidate, nil
+		if err != nil {
+			strategyError = multierror.Append(
+				strategyError,
+				fmt.Errorf("worker: %s, error: %v", candidate.Name(), err),
+			)
+			continue
 		}
-
-		strategyError = multierror.Append(
-			strategyError,
-			fmt.Errorf("worker: %s, error: %v", candidate.Name(), err),
-		)
+		err = pool.checkWorkerPolicy(candidate, containerSpec)
+		if err != nil {
+			strategyError = multierror.Append(
+				strategyError,
+				fmt.Errorf("worker: %s, error: %v", candidate.Name(), err),
+			)
+			continue
+		}
+		return candidate, nil
 	}
 
 	logger.Debug("all-candidate-workers-rejected-during-selection", lager.Data{"reason": strategyError.Error()})
