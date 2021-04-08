@@ -368,7 +368,7 @@ run: {path: a/file}
 			BeforeEach(func() {
 				configSource = &OverrideContainerLimitsSource{
 					ConfigSource: StaticConfigSource{Config: &config},
-					Limits:       overrideLimits,
+					Limits:       &overrideLimits,
 				}
 			})
 

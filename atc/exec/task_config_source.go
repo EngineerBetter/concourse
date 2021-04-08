@@ -129,7 +129,7 @@ func (configSource BaseResourceTypeDefaultsApplySource) Warnings() []string {
 
 type OverrideContainerLimitsSource struct {
 	ConfigSource TaskConfigSource
-	Limits       atc.ContainerLimits
+	Limits       *atc.ContainerLimits
 }
 
 // FetchConfig overrides parameters, allowing the user to set params required by a task loaded
@@ -138,6 +138,10 @@ func (configSource *OverrideContainerLimitsSource) FetchConfig(ctx context.Conte
 	taskConfig, err := configSource.ConfigSource.FetchConfig(ctx, logger, source)
 	if err != nil {
 		return atc.TaskConfig{}, err
+	}
+
+	if configSource.Limits == nil {
+		return taskConfig, nil
 	}
 
 	if configSource.Limits.CPU != nil {
