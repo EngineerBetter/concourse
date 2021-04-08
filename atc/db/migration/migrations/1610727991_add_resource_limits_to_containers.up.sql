@@ -1,3 +1,1 @@
-BEGIN;
-  ALTER TABLE containers ADD COLUMN meta_memory_limit bigint;
-COMMIT;
+ALTER TABLE containers ADD COLUMN meta_memory_limit bigint;

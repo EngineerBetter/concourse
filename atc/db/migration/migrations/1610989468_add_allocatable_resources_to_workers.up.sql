@@ -1,3 +1,1 @@
-BEGIN;
-  ALTER TABLE workers ADD COLUMN allocatable_memory bigint;
-COMMIT;
+ALTER TABLE workers ADD COLUMN allocatable_memory bigint;

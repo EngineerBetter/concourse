@@ -1,3 +1,1 @@
-BEGIN;
-  ALTER TABLE containers ADD COLUMN exit_code int;
-COMMIT;
+ALTER TABLE containers ADD COLUMN exit_code int;
