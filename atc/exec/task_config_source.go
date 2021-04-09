@@ -132,7 +132,7 @@ type OverrideContainerLimitsSource struct {
 	Limits       *atc.ContainerLimits
 }
 
-// FetchConfig overrides parameters, allowing the user to set params required by a task loaded
+// FetchConfig overrides container limits, allowing the user to set container limits required by a task loaded
 // from a file by providing them in static configuration.
 func (configSource *OverrideContainerLimitsSource) FetchConfig(ctx context.Context, logger lager.Logger, source *build.Repository) (atc.TaskConfig, error) {
 	taskConfig, err := configSource.ConfigSource.FetchConfig(ctx, logger, source)
