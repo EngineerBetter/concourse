@@ -144,6 +144,10 @@ func (configSource *OverrideContainerLimitsSource) FetchConfig(ctx context.Conte
 		return taskConfig, nil
 	}
 
+	if taskConfig.Limits == nil {
+		taskConfig.Limits = &atc.ContainerLimits{}
+	}
+
 	if configSource.Limits.CPU != nil {
 		taskConfig.Limits.CPU = configSource.Limits.CPU
 	}
